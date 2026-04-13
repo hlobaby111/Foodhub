@@ -12,44 +12,38 @@ Build a full-stack food delivery web application similar to Zomato focused on a 
 - **Storage**: Emergent Object Storage (image uploads)
 
 ## User Personas
-1. **Customer** - Browse restaurants, order food, track orders
-2. **Restaurant Owner** - Manage menus, handle orders
+1. **Customer** - Browse restaurants, order food, track orders, leave reviews
+2. **Restaurant Owner** - Manage menus, handle orders, track revenue
 3. **Admin** - Approve restaurants, manage platform
 
-## Core Requirements
-- Multi-role auth (customer, restaurant_owner, admin)
-- Restaurant browsing with search/filter/pagination
-- Cart and checkout with COD/online payment
-- Order tracking with status updates
-- Restaurant owner dashboard (menu/order management)
-- Admin panel (stats, approvals, user management)
-
 ## What's Been Implemented (Feb 2026)
-- [x] Full Node.js + Express backend with MVC pattern
-- [x] JWT authentication with 3 user roles
+### Phase 1 (Initial Build)
+- [x] Node.js + Express backend (MVC pattern, 23 endpoints)
+- [x] JWT auth with 3 user roles
 - [x] MongoDB models: User, Restaurant, MenuItem, Order, Review
-- [x] REST APIs for all features (23 endpoints)
-- [x] Database seeding (admin, test users, sample restaurants/menus)
-- [x] React frontend with all pages (Home, RestaurantDetail, Cart, Checkout, Orders, Profile)
-- [x] Restaurant Owner Dashboard (manage restaurants, menus, orders)
-- [x] Admin Dashboard (stats, approve restaurants, manage users/orders)
-- [x] Search and location-based filtering
-- [x] Order status tracking with visual progress
-- [x] Razorpay integration (test mode - payments simulated)
-- [x] Object storage integration for image uploads
+- [x] Database seeding with sample data
+- [x] Home page with hero, search, location filters, pagination
+- [x] Restaurant detail page with menu items
+- [x] Cart, Checkout, Orders pages
+- [x] Restaurant Owner & Admin Dashboards
+
+### Phase 2 (UX Improvements)
+- [x] Sticky "View Cart" bottom bar on restaurant detail page
+- [x] Unified cart+checkout page with: items, +Add more, notes, suggested items, apply coupon, delivery time, delivery form, payment, order summary
+- [x] Coupon system (WELCOME50, FOOD100) 
+- [x] Owner Dashboard redesigned: sidebar nav, Overview/Orders/Menu/Restaurants (management-only, no public browsing)
+- [x] Ratings & Reviews UI on restaurant detail page
+- [x] Rate & Review dialog for delivered orders
+- [x] Full mobile responsiveness across all pages
 
 ## Prioritized Backlog
-### P0 (Done)
-- All core features implemented and tested
+### P1
+- Real image upload for menu items (needs valid storage key)
+- Real Razorpay payment flow
+- Backend coupon management (currently client-side)
 
-### P1 (Next)
-- Ratings & reviews UI (backend done)
-- Image upload for menu items and restaurant covers
-- Real Razorpay payment flow (needs valid test keys)
-
-### P2 (Future)
-- Push notifications
-- Real-time order tracking
+### P2
+- Push notifications / real-time order tracking
 - Delivery partner role
 - Advanced analytics dashboard
 - Email notifications for order updates
