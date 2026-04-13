@@ -1,49 +1,36 @@
 # FoodHub - Food Delivery App PRD
 
-## Problem Statement
-Build a full-stack food delivery web application similar to Zomato focused on a single local city (Mumbai).
-
 ## Architecture
 - **Frontend**: React + Tailwind CSS + Shadcn UI (port 3000)
 - **Backend**: Node.js + Express (port 8001)
 - **Database**: MongoDB
-- **Auth**: JWT-based
+- **Auth**: JWT-based (3 roles: customer, restaurant_owner, admin)
 - **Payment**: Razorpay (test mode)
-- **Storage**: Emergent Object Storage (image uploads)
 
-## User Personas
-1. **Customer** - Browse restaurants, order food, track orders, leave reviews
-2. **Restaurant Owner** - Manage menus, handle orders, track revenue
-3. **Admin** - Approve restaurants, manage platform
+## What's Been Implemented
 
-## What's Been Implemented (Feb 2026)
-### Phase 1 (Initial Build)
-- [x] Node.js + Express backend (MVC pattern, 23 endpoints)
-- [x] JWT auth with 3 user roles
-- [x] MongoDB models: User, Restaurant, MenuItem, Order, Review
-- [x] Database seeding with sample data
-- [x] Home page with hero, search, location filters, pagination
-- [x] Restaurant detail page with menu items
-- [x] Cart, Checkout, Orders pages
-- [x] Restaurant Owner & Admin Dashboards
+### Phase 1 - Core Build
+- Node.js + Express backend (MVC, 32 endpoints)
+- JWT auth, MongoDB models, database seeding
+- Restaurant browsing, cart, checkout, orders
 
-### Phase 2 (UX Improvements)
-- [x] Sticky "View Cart" bottom bar on restaurant detail page
-- [x] Unified cart+checkout page with: items, +Add more, notes, suggested items, apply coupon, delivery time, delivery form, payment, order summary
-- [x] Coupon system (WELCOME50, FOOD100) 
-- [x] Owner Dashboard redesigned: sidebar nav, Overview/Orders/Menu/Restaurants (management-only, no public browsing)
-- [x] Ratings & Reviews UI on restaurant detail page
-- [x] Rate & Review dialog for delivered orders
-- [x] Full mobile responsiveness across all pages
+### Phase 2 - UX Improvements
+- Sticky View Cart bar, unified cart+checkout page
+- Coupon system, reviews UI, responsive design
+- Owner Dashboard with sidebar management panel
 
-## Prioritized Backlog
+### Phase 3 - Order Tracking & Zomato-style UI
+- [x] Zomato-style home: location selector, search, banner carousel (admin-managed), filters, restaurant grid
+- [x] Order Tracking page (/track/:id) with live status steps, restaurant info, delivery address
+- [x] Cancel order with min 10-char reason, notification to restaurant dashboard
+- [x] Owner notifications tab for cancellation alerts
+- [x] Orders page: Track Order for active, cancel reason display for cancelled
+- [x] Banner carousel with 3 default banners (seeded)
+
+## Backlog
 ### P1
-- Real image upload for menu items (needs valid storage key)
-- Real Razorpay payment flow
-- Backend coupon management (currently client-side)
-
+- Real Razorpay payment flow, image uploads
+- Backend coupon management
 ### P2
-- Push notifications / real-time order tracking
-- Delivery partner role
-- Advanced analytics dashboard
-- Email notifications for order updates
+- Real-time WebSocket updates, delivery partner role
+- Advanced analytics, email notifications
