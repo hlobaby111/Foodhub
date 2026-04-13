@@ -87,7 +87,7 @@ const Home = () => {
   return (
     <div className="min-h-screen" data-testid="home-page">
       {/* Hero Section */}
-      <section className="relative h-[60vh] min-h-[400px] flex items-center justify-center overflow-hidden">
+      <section className="relative h-[50vh] sm:h-[60vh] min-h-[350px] sm:min-h-[400px] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0">
           <img
             src="https://static.prod-images.emergentagent.com/jobs/d81d7df0-2199-4d49-83c7-9882eb41f4a9/images/f5de0719646ef8441a5fee6af7d92ce172b8983e58d0c2daf2381f8828c8b271.png"
@@ -97,10 +97,10 @@ const Home = () => {
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
         </div>
         <div className="relative z-10 text-center px-4 max-w-3xl mx-auto">
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-heading font-semibold text-white tracking-tight mb-4" data-testid="hero-title">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-heading font-semibold text-white tracking-tight mb-3 sm:mb-4" data-testid="hero-title">
             Discover Local Flavors
           </h1>
-          <p className="text-base sm:text-lg text-white/80 mb-8">
+          <p className="text-sm sm:text-base lg:text-lg text-white/80 mb-6 sm:mb-8">
             Order from the best restaurants in your city, delivered to your door
           </p>
           <form onSubmit={handleSearch} className="flex gap-2 max-w-xl mx-auto">
@@ -122,8 +122,8 @@ const Home = () => {
       </section>
 
       {/* Location Filter */}
-      <section className="max-w-7xl mx-auto px-6 py-8">
-        <div className="flex items-center gap-3 overflow-x-auto pb-2">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+        <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto pb-2 -mx-1 px-1">
           <Button
             variant={locationFilter === '' ? 'default' : 'secondary'}
             className="rounded-full whitespace-nowrap"
@@ -148,8 +148,8 @@ const Home = () => {
       </section>
 
       {/* Restaurant Grid */}
-      <section className="max-w-7xl mx-auto px-6 pb-16">
-        <h2 className="text-2xl sm:text-3xl font-heading font-medium mb-8" data-testid="restaurants-heading">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 pb-12 sm:pb-16">
+        <h2 className="text-xl sm:text-2xl lg:text-3xl font-heading font-medium mb-6 sm:mb-8" data-testid="restaurants-heading">
           {locationFilter ? `Restaurants in ${locationFilter}` : 'All Restaurants'}
           <span className="text-sm font-body font-normal text-muted-foreground ml-3">
             {pagination.total} found
@@ -169,7 +169,7 @@ const Home = () => {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" data-testid="restaurant-grid">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8" data-testid="restaurant-grid">
               {restaurants.map(restaurant => (
                 <RestaurantCard
                   key={restaurant._id}

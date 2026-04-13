@@ -10,13 +10,13 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import RestaurantDetail from './pages/RestaurantDetail';
 import Cart from './pages/Cart';
-import Checkout from './pages/Checkout';
 import Orders from './pages/Orders';
 import Profile from './pages/Profile';
 import OwnerDashboard from './pages/OwnerDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import { useCart } from './contexts/CartContext';
 import { useAuth } from './contexts/AuthContext';
+import { Navigate } from 'react-router-dom';
 
 const AppContent = () => {
   const { cartCount } = useCart();
@@ -35,11 +35,7 @@ const AppContent = () => {
             <Cart />
           </ProtectedRoute>
         } />
-        <Route path="/checkout" element={
-          <ProtectedRoute allowedRoles={['customer']}>
-            <Checkout />
-          </ProtectedRoute>
-        } />
+        <Route path="/checkout" element={<Navigate to="/cart" replace />} />
         <Route path="/orders" element={
           <ProtectedRoute allowedRoles={['customer']}>
             <Orders />
