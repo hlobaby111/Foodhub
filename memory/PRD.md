@@ -1,36 +1,29 @@
 # FoodHub - Food Delivery App PRD
 
 ## Architecture
-- **Frontend**: React + Tailwind CSS + Shadcn UI (port 3000)
-- **Backend**: Node.js + Express (port 8001)
-- **Database**: MongoDB
-- **Auth**: JWT-based (3 roles: customer, restaurant_owner, admin)
-- **Payment**: Razorpay (test mode)
+- Frontend: React + Tailwind + Shadcn UI + Socket.io Client (port 3000)
+- Backend: Node.js + Express + Socket.io (port 8001)
+- Database: MongoDB
+- Auth: JWT (4 roles), Payment: Razorpay (test), Storage: Emergent Object Storage
 
-## What's Been Implemented
+## Implemented (Feb 2026)
+### Phase 1-3: Core + UX + Tracking
+- Full CRUD for restaurants, menus, orders, reviews
+- Zomato-style home: location selector, search, banner carousel, restaurant cards with rotating photos, veg/non-veg
+- Cart + checkout unified page with coupons, notes, delivery details
+- Order tracking with WebSocket real-time updates, 7-step status flow
+- Cancel order with min 10-char reason + restaurant notifications
 
-### Phase 1 - Core Build
-- Node.js + Express backend (MVC, 32 endpoints)
-- JWT auth, MongoDB models, database seeding
-- Restaurant browsing, cart, checkout, orders
-
-### Phase 2 - UX Improvements
-- Sticky View Cart bar, unified cart+checkout page
-- Coupon system, reviews UI, responsive design
-- Owner Dashboard with sidebar management panel
-
-### Phase 3 - Order Tracking & Zomato-style UI
-- [x] Zomato-style home: location selector, search, banner carousel (admin-managed), filters, restaurant grid
-- [x] Order Tracking page (/track/:id) with live status steps, restaurant info, delivery address
-- [x] Cancel order with min 10-char reason, notification to restaurant dashboard
-- [x] Owner notifications tab for cancellation alerts
-- [x] Orders page: Track Order for active, cancel reason display for cancelled
-- [x] Banner carousel with 3 default banners (seeded)
+### Phase 4: Delivery Partner + Scalability
+- Delivery partner role: dashboard, accept orders, share live location, mark delivered, toggle availability
+- WebSocket server for real-time order updates and delivery location
+- Instant search (debounced, restaurants + dishes)
+- Persistent cart bar on home screen
+- Restaurant settings (isVeg, photos, delivery time) editable by owner
+- Multi-photo restaurant cards with auto-rotate
+- Address management API (save, edit, delete)
+- Comprehensive README with all 32+ API endpoints
 
 ## Backlog
-### P1
-- Real Razorpay payment flow, image uploads
-- Backend coupon management
-### P2
-- Real-time WebSocket updates, delivery partner role
-- Advanced analytics, email notifications
+P1: Real Razorpay, backend coupons, image upload
+P2: Google Maps integration, push notifications, analytics
