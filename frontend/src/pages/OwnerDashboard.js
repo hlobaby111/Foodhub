@@ -12,7 +12,8 @@ import { toast } from 'sonner';
 import {
   Store, Plus, Package, Check, ChefHat, Truck, Trash2,
   LayoutDashboard, UtensilsCrossed, ClipboardList, MapPin,
-  Clock, DollarSign, Star, TrendingUp, Menu as MenuIcon, X
+  Clock, DollarSign, Star, TrendingUp, Menu as MenuIcon, X,
+  Bell, XCircle
 } from 'lucide-react';
 
 const OwnerDashboard = () => {
@@ -25,6 +26,7 @@ const OwnerDashboard = () => {
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [showAddRestaurant, setShowAddRestaurant] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
   const [newItem, setNewItem] = useState({ name: '', description: '', price: '', category: '', isVegetarian: false, restaurantId: '' });
   const [newRestaurant, setNewRestaurant] = useState({ name: '', description: '', email: '', phone: '', location: '', cuisineType: '' });
 
@@ -42,6 +44,11 @@ const OwnerDashboard = () => {
       setRestaurants(restRes.data.restaurants);
       setMenuItems(menuRes.data.menuItems);
       setOrders(ordersRes.data.orders);
+      // Fetch notifications
+      try {
+        const notifRes = await api.get('/api/orders/notifications/list');
+        setNotifications(notifRes.data.notifications || []);
+      } catch (e) { /* ignore */ }
     } catch (error) {
       console.error('Failed to fetch data:', error);
     } finally {
@@ -113,11 +120,15 @@ const OwnerDashboard = () => {
   const completedOrders = orders.filter(o => o.orderStatus === 'delivered');
   const totalRevenue = completedOrders.reduce((sum, o) => sum + o.totalAmount, 0);
 
+  const unreadNotifs = notifications.filter(n => !n.isRead).length;
+  const cancelledOrders = orders.filter(o => o.orderStatus === 'cancelled');
+
   const tabs = [
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
     { id: 'orders', label: 'Orders', icon: ClipboardList, badge: pendingOrders.length },
     { id: 'menu', label: 'Menu', icon: UtensilsCrossed },
     { id: 'restaurants', label: 'Restaurants', icon: Store },
+    { id: 'notifications', label: 'Notifications', icon: Bell, badge: unreadNotifs },
   ];
 
   const getNextStatus = (currentStatus) => {
@@ -456,6 +467,67 @@ const OwnerDashboard = () => {
                       {r.cuisineType?.map((c, i) => (
                         <span key={i} className="text-[10px] bg-muted px-2 py-0.5 rounded-full">{c}</span>
                       ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        {/* Notifications Tab */}
+        {activeTab === 'notifications' && (
+          <div className="space-y-6" data-testid="notifications-tab">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <h1 className="text-xl sm:text-2xl font-heading font-semibold">Notifications</h1>
+              {unreadNotifs > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full text-xs"
+                  onClick={async () => {
+                    try {
+                      await api.put('/api/orders/notifications/read');
+                      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+                      toast.success('All marked as read');
+                    } catch (e) { toast.error('Failed'); }
+                  }}
+                  data-testid="mark-all-read"
+                >
+                  Mark all as read
+                </Button>
+              )}
+            </div>
+
+            {notifications.length === 0 ? (
+              <div className="text-center py-16 text-muted-foreground">
+                <Bell className="w-14 h-14 mx-auto mb-3 opacity-30" />
+                <p className="text-lg">No notifications</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {notifications.map(notif => (
+                  <div
+                    key={notif._id}
+                    className={`rounded-xl border p-4 transition-colors ${notif.isRead ? 'bg-white border-border/50' : 'bg-accent border-primary/20'}`}
+                    data-testid={`notification-${notif._id}`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${notif.type === 'order_cancelled' ? 'bg-red-100' : 'bg-blue-100'}`}>
+                        {notif.type === 'order_cancelled' ? (
+                          <XCircle className="w-4 h-4 text-red-600" />
+                        ) : (
+                          <Bell className="w-4 h-4 text-blue-600" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium">{notif.message}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {new Date(notif.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                      {!notif.isRead && (
+                        <span className="w-2 h-2 bg-primary rounded-full flex-shrink-0 mt-2" />
+                      )}
                     </div>
                   </div>
                 ))}

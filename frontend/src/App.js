@@ -11,6 +11,7 @@ import Register from './pages/Register';
 import RestaurantDetail from './pages/RestaurantDetail';
 import Cart from './pages/Cart';
 import Orders from './pages/Orders';
+import OrderTracking from './pages/OrderTracking';
 import Profile from './pages/Profile';
 import OwnerDashboard from './pages/OwnerDashboard';
 import AdminDashboard from './pages/AdminDashboard';
@@ -39,6 +40,11 @@ const AppContent = () => {
         <Route path="/orders" element={
           <ProtectedRoute allowedRoles={['customer']}>
             <Orders />
+          </ProtectedRoute>
+        } />
+        <Route path="/track/:id" element={
+          <ProtectedRoute allowedRoles={['customer']}>
+            <OrderTracking />
           </ProtectedRoute>
         } />
         <Route path="/profile" element={

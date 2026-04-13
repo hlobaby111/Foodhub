@@ -170,6 +170,38 @@ const getAllOrders = async (req, res, next) => {
   }
 };
 
+const getBanners = async (req, res, next) => {
+  try {
+    const mongoose = require('mongoose');
+    const db = mongoose.connection.db;
+    const banners = await db.collection('banners')
+      .find({ isActive: true })
+      .sort({ order: 1 })
+      .toArray();
+    const sanitized = banners.map(b => ({ ...b, _id: b._id.toString() }));
+    res.json({ banners: sanitized });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const upsertBanner = async (req, res, next) => {
+  try {
+    const { imageUrl, title, subtitle, link, order: bannerOrder } = req.body;
+    const mongoose = require('mongoose');
+    const db = mongoose.connection.db;
+    await db.collection('banners').insertOne({
+      imageUrl, title, subtitle, link,
+      order: bannerOrder || 0,
+      isActive: true,
+      createdAt: new Date()
+    });
+    res.json({ message: 'Banner added' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getDashboardStats,
   getAllUsers,
@@ -177,5 +209,7 @@ module.exports = {
   getPendingRestaurants,
   updateRestaurantStatus,
   getAllRestaurants,
-  getAllOrders
+  getAllOrders,
+  getBanners,
+  upsertBanner
 };

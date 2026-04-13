@@ -1,10 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../utils/api';
+import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
-import { Search, Star, Clock, MapPin, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
+import {
+  Search, Star, Clock, MapPin, ChevronLeft, ChevronRight,
+  Navigation2, Check, X
+} from 'lucide-react';
 
 const RestaurantCard = ({ restaurant, onClick }) => (
   <div
@@ -12,7 +17,7 @@ const RestaurantCard = ({ restaurant, onClick }) => (
     onClick={onClick}
     data-testid={`restaurant-card-${restaurant._id}`}
   >
-    <div className="aspect-[4/3] overflow-hidden relative">
+    <div className="aspect-[16/10] overflow-hidden relative">
       <img
         src={restaurant.coverImage?.url || 'https://images.unsplash.com/photo-1767418238663-d79db1fb7f78?w=600&h=400&fit=crop'}
         alt={restaurant.name}
@@ -25,40 +30,57 @@ const RestaurantCard = ({ restaurant, onClick }) => (
         </div>
       )}
     </div>
-    <div className="p-5">
-      <div className="flex items-start justify-between mb-2">
-        <h3 className="font-heading font-semibold text-lg">{restaurant.name}</h3>
-        <div className="flex items-center gap-1 bg-green-50 text-green-700 px-2 py-0.5 rounded-full text-sm font-medium">
-          <Star className="w-3.5 h-3.5 fill-current" />
+    <div className="p-4">
+      <div className="flex items-start justify-between mb-1.5">
+        <h3 className="font-heading font-semibold text-base sm:text-lg">{restaurant.name}</h3>
+        <div className="flex items-center gap-1 bg-green-50 text-green-700 px-2 py-0.5 rounded-full text-xs sm:text-sm font-medium flex-shrink-0">
+          <Star className="w-3 h-3 fill-current" />
           {restaurant.rating?.toFixed(1) || '0.0'}
         </div>
       </div>
-      <p className="text-sm text-muted-foreground mb-3 line-clamp-1">{restaurant.description}</p>
-      <div className="flex flex-wrap gap-1.5 mb-3">
+      <p className="text-xs sm:text-sm text-muted-foreground mb-2 line-clamp-1">{restaurant.description}</p>
+      <div className="flex flex-wrap gap-1 mb-2">
         {restaurant.cuisineType?.slice(0, 3).map((cuisine, i) => (
-          <Badge key={i} variant="secondary" className="rounded-full text-xs font-normal">{cuisine}</Badge>
+          <Badge key={i} variant="secondary" className="rounded-full text-[10px] sm:text-xs font-normal px-2 py-0">{cuisine}</Badge>
         ))}
       </div>
       <div className="flex items-center text-xs text-muted-foreground">
-        <MapPin className="w-3.5 h-3.5 mr-1" />
-        {restaurant.location}
+        <MapPin className="w-3 h-3 mr-1 flex-shrink-0" />
+        <span className="truncate">{restaurant.location}</span>
       </div>
     </div>
   </div>
 );
 
 const Home = () => {
+  const { user } = useAuth();
   const [restaurants, setRestaurants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [locationFilter, setLocationFilter] = useState('');
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ total: 0, pages: 1 });
+  const [banners, setBanners] = useState([]);
+  const [currentBanner, setCurrentBanner] = useState(0);
+  const [userLocation, setUserLocation] = useState('Mumbai, Maharashtra');
+  const [showLocationDialog, setShowLocationDialog] = useState(false);
+  const [tempLocation, setTempLocation] = useState('');
   const navigate = useNavigate();
+  const bannerInterval = useRef(null);
 
   useEffect(() => {
     fetchRestaurants();
-  }, [page, locationFilter]);
+    fetchBanners();
+  }, [page, locationFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (banners.length > 1) {
+      bannerInterval.current = setInterval(() => {
+        setCurrentBanner(prev => (prev + 1) % banners.length);
+      }, 4000);
+      return () => clearInterval(bannerInterval.current);
+    }
+  }, [banners.length]);
 
   const fetchRestaurants = async () => {
     try {
@@ -76,57 +98,145 @@ const Home = () => {
     }
   };
 
+  const fetchBanners = async () => {
+    try {
+      const response = await api.get('/api/banners');
+      setBanners(response.data.banners || []);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const handleSearch = (e) => {
     e.preventDefault();
     setPage(1);
     fetchRestaurants();
   };
 
+  const handleConfirmLocation = () => {
+    if (tempLocation.trim()) {
+      setUserLocation(tempLocation.trim());
+    }
+    setShowLocationDialog(false);
+  };
+
   const locations = ['Bandra, Mumbai', 'Andheri, Mumbai', 'Juhu, Mumbai', 'Colaba, Mumbai'];
 
   return (
-    <div className="min-h-screen" data-testid="home-page">
-      {/* Hero Section */}
-      <section className="relative h-[50vh] sm:h-[60vh] min-h-[350px] sm:min-h-[400px] flex items-center justify-center overflow-hidden">
-        <div className="absolute inset-0">
-          <img
-            src="https://static.prod-images.emergentagent.com/jobs/d81d7df0-2199-4d49-83c7-9882eb41f4a9/images/f5de0719646ef8441a5fee6af7d92ce172b8983e58d0c2daf2381f8828c8b271.png"
-            alt="Food"
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-        </div>
-        <div className="relative z-10 text-center px-4 max-w-3xl mx-auto">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-heading font-semibold text-white tracking-tight mb-3 sm:mb-4" data-testid="hero-title">
-            Discover Local Flavors
-          </h1>
-          <p className="text-sm sm:text-base lg:text-lg text-white/80 mb-6 sm:mb-8">
-            Order from the best restaurants in your city, delivered to your door
-          </p>
-          <form onSubmit={handleSearch} className="flex gap-2 max-w-xl mx-auto">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search restaurants or dishes..."
-                className="pl-10 h-12 bg-white/95 backdrop-blur-sm border-0 rounded-full text-sm"
-                data-testid="search-input"
-              />
-            </div>
-            <Button type="submit" className="h-12 px-6 rounded-full" data-testid="search-button">
-              Search
-            </Button>
-          </form>
-        </div>
-      </section>
+    <div className="min-h-screen bg-background" data-testid="home-page">
 
-      {/* Location Filter */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-        <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto pb-2 -mx-1 px-1">
+      {/* Location Bar */}
+      <div className="bg-white border-b border-border/50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <button
+            onClick={() => { setTempLocation(userLocation); setShowLocationDialog(true); }}
+            className="flex items-center gap-2 py-3 w-full sm:w-auto"
+            data-testid="location-button"
+          >
+            <Navigation2 className="w-5 h-5 text-primary flex-shrink-0" />
+            <div className="text-left">
+              <p className="text-xs text-muted-foreground leading-none">Deliver to</p>
+              <p className="font-heading font-medium text-sm sm:text-base truncate max-w-[250px]">{userLocation}</p>
+            </div>
+            <ChevronRight className="w-4 h-4 text-muted-foreground ml-1" />
+          </button>
+        </div>
+      </div>
+
+      {/* Location Dialog */}
+      <Dialog open={showLocationDialog} onOpenChange={setShowLocationDialog}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Set your delivery location</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <Input
+              value={tempLocation}
+              onChange={(e) => setTempLocation(e.target.value)}
+              placeholder="Enter your location..."
+              data-testid="location-input"
+            />
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">Popular areas</p>
+              {['Mumbai, Maharashtra', 'Bandra West, Mumbai', 'Andheri East, Mumbai', 'Powai, Mumbai', 'Juhu, Mumbai'].map(loc => (
+                <button
+                  key={loc}
+                  className="flex items-center gap-2 w-full text-left p-2 rounded-lg hover:bg-muted text-sm"
+                  onClick={() => setTempLocation(loc)}
+                  data-testid={`quick-location-${loc.split(',')[0].toLowerCase().replace(/\s/g, '-')}`}
+                >
+                  <MapPin className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                  {loc}
+                  {tempLocation === loc && <Check className="w-4 h-4 text-primary ml-auto" />}
+                </button>
+              ))}
+            </div>
+            <Button className="w-full rounded-full" onClick={handleConfirmLocation} data-testid="confirm-location-button">
+              Confirm Location
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Search Bar */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-4 sm:pt-6">
+        <form onSubmit={handleSearch} className="relative" data-testid="search-form">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search for restaurant, cuisine or a dish"
+            className="pl-12 h-12 sm:h-14 bg-white border-border rounded-2xl text-sm sm:text-base shadow-sm"
+            data-testid="search-input"
+          />
+          {search && (
+            <button type="button" className="absolute right-14 top-1/2 -translate-y-1/2" onClick={() => { setSearch(''); }}>
+              <X className="w-4 h-4 text-muted-foreground" />
+            </button>
+          )}
+          <Button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2 rounded-xl h-9 sm:h-10 px-4 sm:px-6 text-xs sm:text-sm" data-testid="search-button">
+            Search
+          </Button>
+        </form>
+      </div>
+
+      {/* Banner Carousel */}
+      {banners.length > 0 && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-5 sm:pt-6" data-testid="banner-carousel">
+          <div className="relative rounded-2xl overflow-hidden aspect-[21/9] sm:aspect-[3/1]">
+            {banners.map((banner, i) => (
+              <div
+                key={banner._id}
+                className={`absolute inset-0 transition-opacity duration-700 ${i === currentBanner ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+              >
+                <img src={banner.imageUrl} alt={banner.title} className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-transparent" />
+                <div className="absolute bottom-4 sm:bottom-8 left-4 sm:left-8 text-white">
+                  <h3 className="font-heading font-bold text-xl sm:text-3xl lg:text-4xl">{banner.title}</h3>
+                  <p className="text-xs sm:text-sm lg:text-base text-white/80 mt-1">{banner.subtitle}</p>
+                </div>
+              </div>
+            ))}
+            {/* Dots */}
+            <div className="absolute bottom-3 right-4 flex gap-1.5">
+              {banners.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setCurrentBanner(i)}
+                  className={`w-2 h-2 rounded-full transition-all ${i === currentBanner ? 'bg-white w-5' : 'bg-white/50'}`}
+                  data-testid={`banner-dot-${i}`}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Location Filter Chips */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-5 sm:pt-6">
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 -mx-1 px-1">
           <Button
             variant={locationFilter === '' ? 'default' : 'secondary'}
-            className="rounded-full whitespace-nowrap"
+            size="sm"
+            className="rounded-full whitespace-nowrap text-xs sm:text-sm"
             onClick={() => { setLocationFilter(''); setPage(1); }}
             data-testid="filter-all"
           >
@@ -136,40 +246,40 @@ const Home = () => {
             <Button
               key={loc}
               variant={locationFilter === loc ? 'default' : 'secondary'}
-              className="rounded-full whitespace-nowrap"
+              size="sm"
+              className="rounded-full whitespace-nowrap text-xs sm:text-sm"
               onClick={() => { setLocationFilter(loc); setPage(1); }}
               data-testid={`filter-${loc.split(',')[0].toLowerCase()}`}
             >
-              <MapPin className="w-3.5 h-3.5 mr-1" />
-              {loc}
+              {loc.split(',')[0]}
             </Button>
           ))}
         </div>
       </section>
 
       {/* Restaurant Grid */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 pb-12 sm:pb-16">
-        <h2 className="text-xl sm:text-2xl lg:text-3xl font-heading font-medium mb-6 sm:mb-8" data-testid="restaurants-heading">
-          {locationFilter ? `Restaurants in ${locationFilter}` : 'All Restaurants'}
-          <span className="text-sm font-body font-normal text-muted-foreground ml-3">
-            {pagination.total} found
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-4 sm:pt-6 pb-12 sm:pb-16">
+        <h2 className="text-lg sm:text-xl lg:text-2xl font-heading font-medium mb-5 sm:mb-6" data-testid="restaurants-heading">
+          {locationFilter ? `Restaurants in ${locationFilter.split(',')[0]}` : 'All Restaurants'}
+          <span className="text-xs sm:text-sm font-body font-normal text-muted-foreground ml-2">
+            {pagination.total} places
           </span>
         </h2>
 
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {[...Array(6)].map((_, i) => (
-              <div key={i} className="rounded-2xl bg-muted animate-pulse h-80" />
+              <div key={i} className="rounded-2xl bg-muted animate-pulse h-72" />
             ))}
           </div>
         ) : restaurants.length === 0 ? (
-          <div className="text-center py-20" data-testid="no-restaurants">
-            <p className="text-muted-foreground text-lg">No restaurants found</p>
-            <p className="text-sm text-muted-foreground mt-2">Try a different search or location</p>
+          <div className="text-center py-16 sm:py-20" data-testid="no-restaurants">
+            <p className="text-muted-foreground text-base sm:text-lg">No restaurants found</p>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-2">Try a different search or location</p>
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8" data-testid="restaurant-grid">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6" data-testid="restaurant-grid">
               {restaurants.map(restaurant => (
                 <RestaurantCard
                   key={restaurant._id}
@@ -180,26 +290,14 @@ const Home = () => {
             </div>
 
             {pagination.pages > 1 && (
-              <div className="flex items-center justify-center gap-4 mt-12" data-testid="pagination">
-                <Button
-                  variant="outline"
-                  className="rounded-full"
-                  disabled={page <= 1}
-                  onClick={() => setPage(p => p - 1)}
-                  data-testid="prev-page"
-                >
-                  <ChevronLeft className="w-4 h-4 mr-1" /> Previous
+              <div className="flex items-center justify-center gap-3 sm:gap-4 mt-10 sm:mt-12" data-testid="pagination">
+                <Button variant="outline" size="sm" className="rounded-full text-xs sm:text-sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)} data-testid="prev-page">
+                  <ChevronLeft className="w-4 h-4 mr-1" /> Prev
                 </Button>
-                <span className="text-sm text-muted-foreground">
-                  Page {page} of {pagination.pages}
+                <span className="text-xs sm:text-sm text-muted-foreground">
+                  {page} / {pagination.pages}
                 </span>
-                <Button
-                  variant="outline"
-                  className="rounded-full"
-                  disabled={page >= pagination.pages}
-                  onClick={() => setPage(p => p + 1)}
-                  data-testid="next-page"
-                >
+                <Button variant="outline" size="sm" className="rounded-full text-xs sm:text-sm" disabled={page >= pagination.pages} onClick={() => setPage(p => p + 1)} data-testid="next-page">
                   Next <ChevronRight className="w-4 h-4 ml-1" />
                 </Button>
               </div>
@@ -209,16 +307,14 @@ const Home = () => {
       </section>
 
       {/* Footer */}
-      <footer className="py-12 border-t border-border" style={{ backgroundImage: 'url(https://static.prod-images.emergentagent.com/jobs/d81d7df0-2199-4d49-83c7-9882eb41f4a9/images/156a3ff87eee489a1a81f7635e44d4b57a948af45f6828b682b44c3277a9d018.png)', backgroundSize: 'cover', backgroundPosition: 'center' }}>
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-8">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-              <div>
-                <h3 className="font-heading font-semibold text-lg">FoodHub</h3>
-                <p className="text-sm text-muted-foreground">Your local food delivery partner</p>
-              </div>
-              <p className="text-xs text-muted-foreground">Made with care for your city</p>
+      <footer className="py-8 sm:py-12 border-t border-border bg-secondary/30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="text-center sm:text-left">
+              <h3 className="font-heading font-semibold text-base sm:text-lg">FoodHub</h3>
+              <p className="text-xs sm:text-sm text-muted-foreground">Your local food delivery partner</p>
             </div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground">Made with care for your city</p>
           </div>
         </div>
       </footer>

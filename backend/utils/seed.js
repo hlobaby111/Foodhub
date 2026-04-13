@@ -195,6 +195,43 @@ const seedDatabase = async () => {
     
     fs.writeFileSync(credentialsPath, credentialsContent);
     console.log('Test credentials saved to /app/memory/test_credentials.md');
+
+    // Seed banners
+    const mongoose = require('mongoose');
+    const db = mongoose.connection.db;
+    const bannerCount = await db.collection('banners').countDocuments();
+    if (bannerCount === 0) {
+      await db.collection('banners').insertMany([
+        {
+          imageUrl: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=1200&h=400&fit=crop',
+          title: 'Flat 50% OFF',
+          subtitle: 'On your first order! Use code WELCOME50',
+          link: '',
+          order: 1,
+          isActive: true,
+          createdAt: new Date()
+        },
+        {
+          imageUrl: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=1200&h=400&fit=crop',
+          title: 'Free Delivery',
+          subtitle: 'On orders above Rs.299',
+          link: '',
+          order: 2,
+          isActive: true,
+          createdAt: new Date()
+        },
+        {
+          imageUrl: 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=1200&h=400&fit=crop',
+          title: 'Weekend Special',
+          subtitle: 'Try our top-rated restaurants this weekend',
+          link: '',
+          order: 3,
+          isActive: true,
+          createdAt: new Date()
+        }
+      ]);
+      console.log('Default banners created');
+    }
   } catch (error) {
     console.error('Seed error:', error);
   }

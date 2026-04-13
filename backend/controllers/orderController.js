@@ -200,11 +200,109 @@ const updateOrderStatus = async (req, res, next) => {
   }
 };
 
+const cancelOrder = async (req, res, next) => {
+  try {
+    const { reason } = req.body;
+
+    if (!reason || reason.trim().length < 10) {
+      return res.status(400).json({ message: 'Cancellation reason must be at least 10 characters' });
+    }
+
+    const order = await Order.findById(req.params.id);
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    if (order.customer.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    if (['delivered', 'cancelled', 'out_for_delivery'].includes(order.orderStatus)) {
+      return res.status(400).json({ message: 'Order cannot be cancelled at this stage' });
+    }
+
+    order.orderStatus = 'cancelled';
+    order.cancellationReason = reason.trim();
+    order.cancelledAt = new Date();
+    order.cancelledBy = 'customer';
+    order.statusHistory.push({ status: 'cancelled' });
+
+    // Create notification for restaurant owner
+    const mongoose = require('mongoose');
+    const db = mongoose.connection.db;
+    await db.collection('notifications').insertOne({
+      type: 'order_cancelled',
+      orderId: order._id,
+      orderNumber: order.orderNumber,
+      restaurantId: order.restaurant,
+      message: `Order #${order.orderNumber} was cancelled by customer. Reason: ${reason.trim()}`,
+      reason: reason.trim(),
+      isRead: false,
+      createdAt: new Date()
+    });
+
+    await order.save();
+
+    res.json({ message: 'Order cancelled successfully', order });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getNotifications = async (req, res, next) => {
+  try {
+    const restaurants = await Restaurant.find({ owner: req.user._id });
+    const restaurantIds = restaurants.map(r => r._id);
+
+    const mongoose = require('mongoose');
+    const db = mongoose.connection.db;
+    const notifications = await db.collection('notifications')
+      .find({ restaurantId: { $in: restaurantIds } })
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .toArray();
+
+    // Sanitize _id
+    const sanitized = notifications.map(n => ({
+      ...n,
+      _id: n._id.toString(),
+      orderId: n.orderId?.toString(),
+      restaurantId: n.restaurantId?.toString()
+    }));
+
+    res.json({ notifications: sanitized });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const markNotificationsRead = async (req, res, next) => {
+  try {
+    const restaurants = await Restaurant.find({ owner: req.user._id });
+    const restaurantIds = restaurants.map(r => r._id);
+
+    const mongoose = require('mongoose');
+    const db = mongoose.connection.db;
+    await db.collection('notifications').updateMany(
+      { restaurantId: { $in: restaurantIds }, isRead: false },
+      { $set: { isRead: true } }
+    );
+
+    res.json({ message: 'Notifications marked as read' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createOrder,
   verifyPayment,
   getMyOrders,
   getOrderById,
   getRestaurantOrders,
-  updateOrderStatus
+  updateOrderStatus,
+  cancelOrder,
+  getNotifications,
+  markNotificationsRead
 };

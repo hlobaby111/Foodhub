@@ -6,7 +6,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { toast } from 'sonner';
-import { Clock, Package, Check, Truck, ChefHat, Star, MessageSquare } from 'lucide-react';
+import { Clock, Package, Check, Truck, ChefHat, Star, MessageSquare, ExternalLink, XCircle } from 'lucide-react';
 
 const statusConfig = {
   placed: { label: 'Placed', color: 'bg-blue-100 text-blue-800', icon: Package },
@@ -162,7 +162,7 @@ const Orders = () => {
 
                 {/* Review Button for delivered orders */}
                 {order.orderStatus === 'delivered' && (
-                  <div className="mt-4 pt-4 border-t border-border/50">
+                  <div className="mt-4 pt-4 border-t border-border/50 flex flex-wrap gap-2">
                     <Button
                       variant="outline"
                       size="sm"
@@ -172,6 +172,33 @@ const Orders = () => {
                     >
                       <Star className="w-3.5 h-3.5 mr-1 text-yellow-500" /> Rate & Review
                     </Button>
+                  </div>
+                )}
+
+                {/* Track Order / Cancel for active orders */}
+                {!['delivered', 'cancelled'].includes(order.orderStatus) && (
+                  <div className="mt-4 pt-4 border-t border-border/50 flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      className="rounded-full text-xs sm:text-sm"
+                      onClick={() => navigate(`/track/${order._id}`)}
+                      data-testid={`track-order-${order._id}`}
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 mr-1" /> Track Order
+                    </Button>
+                  </div>
+                )}
+
+                {/* Cancelled info */}
+                {order.orderStatus === 'cancelled' && order.cancellationReason && (
+                  <div className="mt-4 pt-4 border-t border-border/50">
+                    <div className="flex items-start gap-2 text-sm text-red-600 bg-red-50 rounded-xl p-3">
+                      <XCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="font-medium text-xs">Cancelled</p>
+                        <p className="text-xs text-red-500 mt-0.5">{order.cancellationReason}</p>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>

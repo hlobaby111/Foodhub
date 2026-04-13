@@ -61,6 +61,13 @@ const orderSchema = new mongoose.Schema({
   }],
   customerPhone: String,
   notes: String,
+  cancellationReason: String,
+  cancelledAt: Date,
+  cancelledBy: {
+    type: String,
+    enum: ['customer', 'restaurant', 'admin']
+  },
+  estimatedDelivery: Date,
   createdAt: {
     type: Date,
     default: Date.now

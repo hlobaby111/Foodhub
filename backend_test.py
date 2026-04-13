@@ -352,6 +352,131 @@ class FoodHubAPITester:
 
         return success1 and success2 and success3 and success4
 
+    def test_banners_endpoint(self):
+        """Test banners endpoint for home page carousel"""
+        success, response = self.run_test(
+            "Get Banners",
+            "GET",
+            "banners",
+            200
+        )
+        if success and 'banners' in response:
+            banners = response['banners']
+            self.log_test("Banners Count Check", True, f"Found {len(banners)} banners")
+            return True
+        return success
+
+    def test_order_cancellation(self):
+        """Test order cancellation functionality"""
+        if not self.customer_token:
+            self.log_test("Order Cancellation", False, "Customer not logged in")
+            return False
+
+        # First create an order to cancel
+        success, response = self.run_test(
+            "Get Restaurant for Cancel Test",
+            "GET",
+            "restaurants",
+            200
+        )
+        if not success or not response.get('restaurants'):
+            return False
+
+        restaurant = response['restaurants'][0]
+        restaurant_id = restaurant['_id']
+
+        # Get menu items
+        success, detail_response = self.run_test(
+            "Get Menu for Cancel Test",
+            "GET",
+            f"restaurants/{restaurant_id}",
+            200
+        )
+        if not success or not detail_response.get('menuItems'):
+            return False
+
+        menu_item = detail_response['menuItems'][0]
+
+        order_data = {
+            "restaurantId": restaurant_id,
+            "items": [{
+                "menuItemId": menu_item['_id'],
+                "name": menu_item['name'],
+                "quantity": 1
+            }],
+            "deliveryAddress": {
+                "street": "123 Cancel Test Street",
+                "city": "Mumbai",
+                "state": "Maharashtra",
+                "pincode": "400001"
+            },
+            "paymentMethod": "cash",
+            "customerPhone": "9876543210",
+            "notes": "Test order for cancellation"
+        }
+
+        success, order_response = self.run_test(
+            "Create Order for Cancel Test",
+            "POST",
+            "orders",
+            201,
+            data=order_data,
+            token=self.customer_token
+        )
+        
+        if not success or 'order' not in order_response:
+            return False
+
+        order_id = order_response['order']['_id']
+
+        # Test cancellation with insufficient reason (should fail)
+        success, _ = self.run_test(
+            "Cancel Order - Short Reason (Should Fail)",
+            "PUT",
+            f"orders/{order_id}/cancel",
+            400,  # Should fail with 400
+            data={"reason": "short"},
+            token=self.customer_token
+        )
+
+        # Test cancellation with valid reason
+        success, _ = self.run_test(
+            "Cancel Order - Valid Reason",
+            "PUT",
+            f"orders/{order_id}/cancel",
+            200,
+            data={"reason": "Changed my mind about the order, no longer needed"},
+            token=self.customer_token
+        )
+
+        return success
+
+    def test_owner_notifications(self):
+        """Test owner notifications functionality"""
+        if not self.owner_token:
+            self.log_test("Owner Notifications", False, "Owner not logged in")
+            return False
+
+        # Test getting notifications
+        success1, _ = self.run_test(
+            "Get Owner Notifications",
+            "GET",
+            "orders/notifications/list",
+            200,
+            token=self.owner_token
+        )
+
+        # Test marking notifications as read
+        success2, _ = self.run_test(
+            "Mark Notifications Read",
+            "PUT",
+            "orders/notifications/read",
+            200,
+            token=self.owner_token
+        )
+
+        return success1 and success2
+
     def test_unauthorized_access(self):
         """Test that protected endpoints require authentication"""
         success, _ = self.run_test(
@@ -397,6 +522,12 @@ class FoodHubAPITester:
         print("\n📊 Dashboard Tests:")
         self.test_owner_dashboard_access()
         self.test_admin_dashboard_access()
+
+        # New feature tests
+        print("\n🆕 New Feature Tests:")
+        self.test_banners_endpoint()
+        self.test_order_cancellation()
+        self.test_owner_notifications()
 
         # Print summary
         print("\n" + "=" * 60)

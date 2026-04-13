@@ -31,6 +31,22 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/upload', uploadRoutes);
 
+// Public banners endpoint (no auth)
+app.get('/api/banners', async (req, res) => {
+  try {
+    const mongoose = require('mongoose');
+    const db = mongoose.connection.db;
+    const banners = await db.collection('banners')
+      .find({ isActive: true })
+      .sort({ order: 1 })
+      .toArray();
+    const sanitized = banners.map(b => ({ ...b, _id: b._id.toString() }));
+    res.json({ banners: sanitized });
+  } catch (error) {
+    res.json({ banners: [] });
+  }
+});
+
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Food Delivery API is running' });
 });
