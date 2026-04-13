@@ -25,6 +25,8 @@ const Login = () => {
         navigate('/admin/dashboard');
       } else if (data.user.role === 'restaurant_owner') {
         navigate('/owner/dashboard');
+      } else if (data.user.role === 'delivery_partner') {
+        navigate('/delivery/dashboard');
       } else {
         navigate('/');
       }

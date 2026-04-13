@@ -58,6 +58,22 @@ const seedDatabase = async () => {
       console.log('Test restaurant owner created');
     }
     
+    // Delivery Partner
+    let deliveryPartner = await User.findOne({ email: 'delivery@test.com' });
+    if (!deliveryPartner) {
+      const hashedPassword = await bcrypt.hash('delivery123', 10);
+      deliveryPartner = new User({
+        name: 'Delivery Partner',
+        email: 'delivery@test.com',
+        password: hashedPassword,
+        phone: '9876543299',
+        role: 'delivery_partner',
+        isAvailable: true
+      });
+      await deliveryPartner.save();
+      console.log('Test delivery partner created');
+    }
+    
     const restaurantCount = await Restaurant.countDocuments({ owner: restaurantOwner._id });
     
     if (restaurantCount === 0) {
@@ -67,20 +83,23 @@ const seedDatabase = async () => {
         owner: restaurantOwner._id,
         email: 'spiceparadise@test.com',
         phone: '9876543212',
-        address: {
-          street: '456 Food Street',
-          city: 'Mumbai',
-          state: 'Maharashtra',
-          pincode: '400002'
-        },
+        address: { street: '456 Food Street', city: 'Mumbai', state: 'Maharashtra', pincode: '400002' },
         location: 'Bandra, Mumbai',
+        coordinates: { lat: 19.0596, lng: 72.8295 },
         cuisineType: ['Indian', 'North Indian', 'Mughlai'],
+        isVeg: false,
+        photos: [
+          { url: 'https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=600&h=400&fit=crop' },
+          { url: 'https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=600&h=400&fit=crop' },
+          { url: 'https://images.unsplash.com/photo-1631452180519-c014fe946bc7?w=600&h=400&fit=crop' }
+        ],
         status: 'approved',
         rating: 4.5,
         totalReviews: 125,
         openingHours: '10:00 AM - 11:00 PM',
         minimumOrder: 150,
-        deliveryTime: '30-40 mins'
+        deliveryTime: '30-40 mins',
+        avgPrepTime: 25
       });
       await restaurant1.save();
       
@@ -135,20 +154,22 @@ const seedDatabase = async () => {
         owner: restaurantOwner._id,
         email: 'pizzacorner@test.com',
         phone: '9876543213',
-        address: {
-          street: '789 Pizza Lane',
-          city: 'Mumbai',
-          state: 'Maharashtra',
-          pincode: '400003'
-        },
+        address: { street: '789 Pizza Lane', city: 'Mumbai', state: 'Maharashtra', pincode: '400003' },
         location: 'Andheri, Mumbai',
+        coordinates: { lat: 19.1136, lng: 72.8697 },
         cuisineType: ['Italian', 'Pizza', 'Fast Food'],
+        isVeg: true,
+        photos: [
+          { url: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=600&h=400&fit=crop' },
+          { url: 'https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=600&h=400&fit=crop' }
+        ],
         status: 'approved',
         rating: 4.3,
         totalReviews: 87,
         openingHours: '11:00 AM - 12:00 AM',
         minimumOrder: 200,
-        deliveryTime: '25-35 mins'
+        deliveryTime: '25-35 mins',
+        avgPrepTime: 20
       });
       await restaurant2.save();
       
@@ -191,7 +212,7 @@ const seedDatabase = async () => {
     }
     
     const credentialsPath = path.join(__dirname, '../../memory/test_credentials.md');
-    const credentialsContent = `# Test Credentials\n\n## Admin Account\n- Email: ${adminEmail}\n- Password: ${adminPassword}\n- Role: admin\n\n## Test Customer\n- Email: customer@test.com\n- Password: customer123\n- Role: customer\n\n## Restaurant Owner\n- Email: owner@test.com\n- Password: owner123\n- Role: restaurant_owner\n\n## API Endpoints\n- Register: POST /api/auth/register\n- Login: POST /api/auth/login\n- Profile: GET /api/auth/profile (requires auth)\n`;
+    const credentialsContent = `# Test Credentials\n\n## Admin Account\n- Email: ${adminEmail}\n- Password: ${adminPassword}\n- Role: admin\n\n## Test Customer\n- Email: customer@test.com\n- Password: customer123\n- Role: customer\n\n## Restaurant Owner\n- Email: owner@test.com\n- Password: owner123\n- Role: restaurant_owner\n\n## Delivery Partner\n- Email: delivery@test.com\n- Password: delivery123\n- Role: delivery_partner\n\n## API Endpoints\n- Register: POST /api/auth/register\n- Login: POST /api/auth/login\n- Addresses: GET/POST /api/addresses\n- Delivery: GET /api/delivery/dashboard\n- Search: GET /api/search?q=query\n- WebSocket: /api/socket.io\n`;
     
     fs.writeFileSync(credentialsPath, credentialsContent);
     console.log('Test credentials saved to /app/memory/test_credentials.md');

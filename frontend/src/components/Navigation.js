@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { ShoppingCart, User, LogOut, Store, Shield } from 'lucide-react';
+import { ShoppingCart, User, LogOut, Store, Shield, Truck } from 'lucide-react';
 import { Button } from './ui/button';
 import {
   DropdownMenu,
@@ -91,6 +91,13 @@ const Navigation = ({ cartItemsCount = 0 }) => {
                       <DropdownMenuItem onClick={() => navigate('/admin/dashboard')} data-testid="admin-dashboard-menu-item">
                         <Shield className="w-4 h-4 mr-2" />
                         Admin Panel
+                      </DropdownMenuItem>
+                    )}
+                    
+                    {user.role === 'delivery_partner' && (
+                      <DropdownMenuItem onClick={() => navigate('/delivery/dashboard')} data-testid="delivery-dashboard-menu-item">
+                        <Truck className="w-4 h-4 mr-2" />
+                        Deliveries
                       </DropdownMenuItem>
                     )}
                     

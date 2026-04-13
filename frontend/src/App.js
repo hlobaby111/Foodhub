@@ -15,6 +15,7 @@ import OrderTracking from './pages/OrderTracking';
 import Profile from './pages/Profile';
 import OwnerDashboard from './pages/OwnerDashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import DeliveryDashboard from './pages/DeliveryDashboard';
 import { useCart } from './contexts/CartContext';
 import { useAuth } from './contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
@@ -60,6 +61,11 @@ const AppContent = () => {
         <Route path="/admin/dashboard" element={
           <ProtectedRoute allowedRoles={['admin']}>
             <AdminDashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/delivery/dashboard" element={
+          <ProtectedRoute allowedRoles={['delivery_partner']}>
+            <DeliveryDashboard />
           </ProtectedRoute>
         } />
       </Routes>

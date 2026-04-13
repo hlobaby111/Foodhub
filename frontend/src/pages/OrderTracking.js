@@ -27,20 +27,37 @@ const OrderTracking = () => {
   const [cancelReason, setCancelReason] = useState('');
   const [cancelling, setCancelling] = useState(false);
   const [pollingActive, setPollingActive] = useState(true);
+  const [deliveryLocation, setDeliveryLocation] = useState(null);
 
   useEffect(() => {
     fetchOrder();
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // WebSocket connection for real-time updates
   useEffect(() => {
-    if (!pollingActive || !order) return;
-    if (['delivered', 'cancelled'].includes(order?.orderStatus)) {
-      setPollingActive(false);
-      return;
-    }
-    const interval = setInterval(fetchOrder, 10000);
-    return () => clearInterval(interval);
-  }, [pollingActive, order?.orderStatus]); // eslint-disable-line react-hooks/exhaustive-deps
+    const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+    const socket = io(BACKEND_URL, { path: '/api/socket.io', transports: ['websocket', 'polling'] });
+
+    socket.on('connect', () => {
+      console.log('Connected to WebSocket');
+      socket.emit('join_order', id);
+    });
+
+    socket.on('order_update', (data) => {
+      console.log('Order update received:', data);
+      fetchOrder();
+      toast.info(`Order status: ${data.status?.replace(/_/g, ' ')}`);
+    });
+
+    socket.on('delivery_location', (data) => {
+      setDeliveryLocation(data);
+    });
+
+    return () => {
+      socket.emit('leave_order', id);
+      socket.disconnect();
+    };
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchOrder = async () => {
     try {
@@ -206,6 +223,31 @@ const OrderTracking = () => {
       )}
 
       {/* Order Items */}
+      {/* Delivery Partner Live Location */}
+      {(deliveryLocation || order.deliveryPartnerLocation) && ['picked_up', 'out_for_delivery'].includes(order.orderStatus) && (
+        <div className="bg-white rounded-2xl border border-border/50 p-4 sm:p-5 mb-5" data-testid="delivery-partner-location">
+          <h3 className="font-heading font-medium text-sm sm:text-base mb-3 flex items-center gap-2">
+            <Navigation2 className="w-4 h-4 text-primary animate-pulse" /> Delivery Partner Location
+          </h3>
+          <div className="bg-green-50 rounded-xl p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                <Truck className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <p className="font-medium text-sm text-green-800">Your delivery partner is on the way!</p>
+                <p className="text-xs text-green-600 mt-0.5">
+                  Live location: {(deliveryLocation?.lat || order.deliveryPartnerLocation?.lat)?.toFixed(4)}, {(deliveryLocation?.lng || order.deliveryPartnerLocation?.lng)?.toFixed(4)}
+                </p>
+                <p className="text-[10px] text-green-500 mt-0.5">
+                  Updated: {new Date(deliveryLocation?.updatedAt || order.deliveryPartnerLocation?.updatedAt || Date.now()).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-2xl border border-border/50 p-4 sm:p-5 mb-5" data-testid="tracking-order-items">
         <h3 className="font-heading font-medium text-sm sm:text-base mb-3">Order Details</h3>
         <div className="space-y-2">

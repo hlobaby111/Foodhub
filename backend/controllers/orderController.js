@@ -193,6 +193,16 @@ const updateOrderStatus = async (req, res, next) => {
     order.statusHistory.push({ status });
     
     await order.save();
+
+    // Emit WebSocket event
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`order_${order._id}`).emit('order_update', {
+        orderId: order._id.toString(),
+        status,
+        timestamp: new Date()
+      });
+    }
     
     res.json({ message: 'Order status updated successfully', order });
   } catch (error) {

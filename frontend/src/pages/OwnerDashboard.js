@@ -132,15 +132,17 @@ const OwnerDashboard = () => {
   ];
 
   const getNextStatus = (currentStatus) => {
-    const flow = { placed: 'accepted', accepted: 'preparing', preparing: 'out_for_delivery', out_for_delivery: 'delivered' };
+    const flow = { placed: 'accepted', accepted: 'preparing', preparing: 'ready', ready: 'out_for_delivery', out_for_delivery: 'delivered' };
     return flow[currentStatus] || null;
   };
 
-  const statusLabel = { accepted: 'Accept Order', preparing: 'Start Preparing', out_for_delivery: 'Send for Delivery', delivered: 'Mark Delivered' };
+  const statusLabel = { accepted: 'Accept Order', preparing: 'Start Preparing', ready: 'Mark Ready', out_for_delivery: 'Send for Delivery', delivered: 'Mark Delivered' };
   const statusColors = {
     placed: 'bg-blue-100 text-blue-800',
     accepted: 'bg-indigo-100 text-indigo-800',
     preparing: 'bg-yellow-100 text-yellow-800',
+    ready: 'bg-teal-100 text-teal-800',
+    picked_up: 'bg-cyan-100 text-cyan-800',
     out_for_delivery: 'bg-orange-100 text-orange-800',
     delivered: 'bg-green-100 text-green-800',
     cancelled: 'bg-red-100 text-red-800'
