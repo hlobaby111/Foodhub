@@ -1,20 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../utils/api';
+import { io } from 'socket.io-client';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { toast } from 'sonner';
 import {
   ArrowLeft, MapPin, Clock, Phone, Check, ChefHat, Truck,
-  Package, XCircle, Star, Store, AlertTriangle
+  Package, XCircle, Star, Store, AlertTriangle, Navigation2, Utensils
 } from 'lucide-react';
 
 const statusSteps = [
   { key: 'placed', label: 'Order Placed', icon: Package, description: 'Your order has been placed' },
   { key: 'accepted', label: 'Accepted', icon: Check, description: 'Restaurant accepted your order' },
   { key: 'preparing', label: 'Preparing', icon: ChefHat, description: 'Your food is being prepared' },
-  { key: 'out_for_delivery', label: 'On the Way', icon: Truck, description: 'Your order is out for delivery' },
+  { key: 'ready', label: 'Ready', icon: Utensils, description: 'Food is ready, waiting for pickup' },
+  { key: 'picked_up', label: 'Picked Up', icon: Truck, description: 'Delivery partner picked up your order' },
+  { key: 'out_for_delivery', label: 'On the Way', icon: Navigation2, description: 'Your order is on its way!' },
   { key: 'delivered', label: 'Delivered', icon: Check, description: 'Order delivered! Enjoy your meal' },
 ];
 
