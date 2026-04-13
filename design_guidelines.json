@@ -1,0 +1,115 @@
+{
+  "theme": "light",
+  "archetype": "Organic & Earthy (Warm Minimalist)",
+  "design_philosophy": "Clean, minimal, and appetizing. Emphasize generous whitespace, natural colors (terracotta, bone white), and high-contrast typography. Move away from generic tech-bro interfaces into a more tactile, editorial feel for food discovery. The UI should fade into the background, letting the food photography and typography do the heavy lifting.",
+  "colors": {
+    "background": "#FDFBF7",
+    "foreground": "#1A1A1A",
+    "primary": "#E05D36",
+    "primary_foreground": "#FFFFFF",
+    "secondary": "#F3EFEB",
+    "secondary_foreground": "#1A1A1A",
+    "muted": "#F3EFEB",
+    "muted_foreground": "#737373",
+    "accent": "#F5E6E0",
+    "accent_foreground": "#E05D36",
+    "success": "#8A9A5B",
+    "border": "#EBE5DF",
+    "input": "#EBE5DF",
+    "ring": "#E05D36"
+  },
+  "typography": {
+    "font_family": {
+      "heading": "'Outfit', sans-serif",
+      "body": "'DM Sans', sans-serif"
+    },
+    "scale": {
+      "h1": "text-4xl sm:text-5xl lg:text-6xl tracking-tight font-medium",
+      "h2": "text-2xl sm:text-3xl lg:text-4xl tracking-tight font-medium",
+      "h3": "text-xl sm:text-2xl tracking-tight font-medium",
+      "h4": "text-lg sm:text-xl font-medium",
+      "body": "text-base leading-relaxed text-foreground/80",
+      "small": "text-sm uppercase tracking-[0.2em] font-medium text-muted-foreground"
+    },
+    "google_fonts_url": "https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;500;600&family=Outfit:wght@400;500;600;700&display=swap"
+  },
+  "layout_and_spacing": {
+    "spacing_scale": "Use generous spacing. Default section padding should be py-16 to py-24. Component padding should be p-6 to p-8.",
+    "container_width": "max-w-7xl mx-auto px-6",
+    "grid_system": "Use CSS grid for restaurant listings (grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8). For dashboard, use a 12-column bento box approach with gap-6.",
+    "border_radius": "rounded-2xl for large cards/images, rounded-xl for standard components, rounded-full for primary CTA buttons."
+  },
+  "component_guidelines": {
+    "buttons": "Primary buttons should be solid Terracotta (#E05D36) with rounded-full geometry. Hover state: slight scale-up (scale-105) and shadow-lg. Secondary buttons should be warm gray (#F3EFEB) with text-foreground.",
+    "cards": "Restaurant and Food cards should be flat, Cardless or with a subtle border-border. Use bg-white or bg-secondary. Hover: -translate-y-1, shadow-[0_8px_32px_rgba(26,26,26,0.08)]. No heavy drop shadows.",
+    "navigation": "Sticky glassmorphism header: backdrop-blur-xl bg-[#FDFBF7]/80 border-b border-border/50. Must have z-50.",
+    "forms_inputs": "Shadcn UI base. bg-white, border-border, rounded-xl. Focus state: ring-2 ring-primary/20 border-primary.",
+    "badges_tags": "Use soft pastel backgrounds (accent color) with primary text color. rounded-full px-3 py-1 text-sm font-medium."
+  },
+  "interactions_and_motion": {
+    "hover_states": "All interactive elements must have smooth transitions: transition-all duration-300 ease-out.",
+    "page_transitions": "Fade in and slight slide up (translate-y-4 to 0) for lists and main content.",
+    "micro_interactions": "Active states on tabs or filters should use a pill-shaped background slider or simple underline. Image cards should zoom image (scale-105) inside a hidden overflow container on hover."
+  },
+  "accessibility": {
+    "contrast": "Ensure text contrast meets APCA/WCAG standards. Text over images must have a gradient overlay (bg-gradient-to-t from-black/60 to-transparent).",
+    "focus_states": "All focusable elements must have clear focus-visible rings.",
+    "test_ids": "All interactive and key informational elements MUST include a data-testid attribute in kebab-case (e.g., data-testid='add-to-cart-button', data-testid='restaurant-card-1')."
+  },
+  "media_and_assets": {
+    "icons": "Use lucide-react. Keep stroke width consistent (1.5px).",
+    "image_usage": "Images should have rounded-2xl corners. Do not use generic placeholders. Use the provided high-quality URLs.",
+    "image_urls": [
+      {
+        "category": "hero_background",
+        "url": "https://static.prod-images.emergentagent.com/jobs/d81d7df0-2199-4d49-83c7-9882eb41f4a9/images/f5de0719646ef8441a5fee6af7d92ce172b8983e58d0c2daf2381f8828c8b271.png",
+        "description": "Overhead aesthetic modern table setting with extreme negative space. Use as main hero background."
+      },
+      {
+        "category": "illustration_accent",
+        "url": "https://static.prod-images.emergentagent.com/jobs/d81d7df0-2199-4d49-83c7-9882eb41f4a9/images/733b2ed47afd50d90ab55f20895f67fff35045ac833601662c30a886b1ab42a3.png",
+        "description": "Minimal 3D scooter illustration for 'Fast Delivery' feature section or empty cart state."
+      },
+      {
+        "category": "texture_background",
+        "url": "https://static.prod-images.emergentagent.com/jobs/d81d7df0-2199-4d49-83c7-9882eb41f4a9/images/156a3ff87eee489a1a81f7635e44d4b57a948af45f6828b682b44c3277a9d018.png",
+        "description": "Abstract organic shape background. Use for feature sections, footer background, or auth pages."
+      },
+      {
+        "category": "food_burger",
+        "url": "https://images.unsplash.com/photo-1617686578451-46fa5f114c9d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NDh8MHwxfHNlYXJjaHwxfHxkZWxpY2lvdXMlMjBidXJnZXIlMjBnb3VybWV0JTIwY2xlYW4lMjBmbGF0bGF5fGVufDB8fHx8MTc3NjA2MzgzMXww&ixlib=rb-4.1.0&q=85",
+        "description": "Gourmet burger flatlay. Use for featured dish or restaurant menu item."
+      },
+      {
+        "category": "food_pizza",
+        "url": "https://images.unsplash.com/photo-1708649783152-a6750fa1b951?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MTJ8MHwxfHNlYXJjaHwxfHxmcmVzaCUyMHBpenphJTIwc2xpY2UlMjBtaW5pbWFsfGVufDB8fHx8MTc3NjA2MzgzMXww&ixlib=rb-4.1.0&q=85",
+        "description": "Minimal fresh pizza slice. Use for featured dish or category thumbnail."
+      },
+      {
+        "category": "restaurant_interior_1",
+        "url": "https://images.unsplash.com/photo-1767418238663-d79db1fb7f78?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzN8MHwxfHNlYXJjaHwzfHxtb2Rlcm4lMjBjYWZlJTIwcmVzdGF1cmFudCUyMGludGVyaW9yJTIwd2FybXxlbnwwfHx8fDE3NzYwNjM4MzF8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Warm modern cafe interior. Use as restaurant cover image."
+      },
+      {
+        "category": "restaurant_interior_2",
+        "url": "https://images.unsplash.com/photo-1770629681079-86c4d2adb83f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzN8MHwxfHNlYXJjaHwyfHxtb2Rlcm4lMjBjYWZlJTIwcmVzdGF1cmFudCUyMGludGVyaW9yJTIwd2FybXxlbnwwfHx8fDE3NzYwNjM4MzF8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Modern restaurant interior with warm lighting. Use as restaurant cover image."
+      }
+    ]
+  },
+  "pages_and_flows": {
+    "customer_homepage": "Hero section with 'hero_background' image, search bar overlaid. Below: 'Featured Restaurants' bento grid. Horizontal scroll categories with icon/image. Clean footer using 'texture_background'.",
+    "restaurant_listing": "Grid layout (gap-8). Cards should feature high-quality images (aspect-[4/3]), bold titles, rating pill, and cuisine tags.",
+    "restaurant_detail": "Large cover image at top (h-[40vh] to max-h-[60vh]). Overlapping white container for content (mt-[-4rem] rounded-t-3xl) to create depth. Menu items in a clean list or 2-column grid.",
+    "cart_and_checkout": "Slide-out sheet for cart (Shadcn Sheet). Minimalist checkout form with clear progress indicators. Use 'success' color (#8A9A5B) for completed steps.",
+    "owner_admin_dashboard": "Sidebar navigation (w-64). Main content area with dense but clean metrics bento grid. Tables for orders should be cardless with simple border-b on rows. Use Lucide icons for status (e.g., Clock for pending, Check for delivered)."
+  },
+  "developer_instructions": [
+    "Use Tailwind CSS for all styling. Avoid custom CSS unless absolutely necessary for complex animations.",
+    "Initialize Shadcn UI and customize the border radius, colors, and fonts according to this JSON.",
+    "Do NOT use 'Inter' font. Use Outfit and DM Sans.",
+    "All elements receiving user interaction MUST have `data-testid` attributes in kebab-case.",
+    "Apply `backdrop-blur` for sticky headers to maintain context while scrolling.",
+    "Images must never use generic placeholders. Fallback to the provided media URLs."
+  ]
+}
