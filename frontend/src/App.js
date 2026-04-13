@@ -1,53 +1,80 @@
-import { useEffect } from "react";
-import "@/App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import axios from "axios";
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
+import { CartProvider } from './contexts/CartContext';
+import { Toaster } from './components/ui/sonner';
+import Navigation from './components/Navigation';
+import ProtectedRoute from './components/ProtectedRoute';
+import Home from './pages/Home';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import RestaurantDetail from './pages/RestaurantDetail';
+import Cart from './pages/Cart';
+import Checkout from './pages/Checkout';
+import Orders from './pages/Orders';
+import Profile from './pages/Profile';
+import OwnerDashboard from './pages/OwnerDashboard';
+import AdminDashboard from './pages/AdminDashboard';
+import { useCart } from './contexts/CartContext';
+import { useAuth } from './contexts/AuthContext';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
-
-const Home = () => {
-  const helloWorldApi = async () => {
-    try {
-      const response = await axios.get(`${API}/`);
-      console.log(response.data.message);
-    } catch (e) {
-      console.error(e, `errored out requesting / api`);
-    }
-  };
-
-  useEffect(() => {
-    helloWorldApi();
-  }, []);
+const AppContent = () => {
+  const { cartCount } = useCart();
+  const { user } = useAuth();
 
   return (
-    <div>
-      <header className="App-header">
-        <a
-          className="App-link"
-          href="https://emergent.sh"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <img src="https://avatars.githubusercontent.com/in/1201222?s=120&u=2686cf91179bbafbc7a71bfbc43004cf9ae1acea&v=4" />
-        </a>
-        <p className="mt-5">Building something incredible ~!</p>
-      </header>
+    <div className="min-h-screen bg-background">
+      <Navigation cartItemsCount={cartCount} />
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/restaurant/:id" element={<RestaurantDetail />} />
+        <Route path="/cart" element={
+          <ProtectedRoute allowedRoles={['customer']}>
+            <Cart />
+          </ProtectedRoute>
+        } />
+        <Route path="/checkout" element={
+          <ProtectedRoute allowedRoles={['customer']}>
+            <Checkout />
+          </ProtectedRoute>
+        } />
+        <Route path="/orders" element={
+          <ProtectedRoute allowedRoles={['customer']}>
+            <Orders />
+          </ProtectedRoute>
+        } />
+        <Route path="/profile" element={
+          <ProtectedRoute>
+            <Profile />
+          </ProtectedRoute>
+        } />
+        <Route path="/owner/dashboard" element={
+          <ProtectedRoute allowedRoles={['restaurant_owner']}>
+            <OwnerDashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/dashboard" element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminDashboard />
+          </ProtectedRoute>
+        } />
+      </Routes>
+      <Toaster position="bottom-right" />
     </div>
   );
 };
 
 function App() {
   return (
-    <div className="App">
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Home />}>
-            <Route index element={<Home />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </div>
+    <Router>
+      <AuthProvider>
+        <CartProvider>
+          <AppContent />
+        </CartProvider>
+      </AuthProvider>
+    </Router>
   );
 }
 
