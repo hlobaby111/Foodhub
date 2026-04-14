@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 import { io } from 'socket.io-client';
@@ -32,9 +32,23 @@ const OrderTracking = () => {
   const [pollingActive, setPollingActive] = useState(true);
   const [deliveryLocation, setDeliveryLocation] = useState(null);
 
+  // Fixed: Wrap fetchOrder in useCallback to stabilize reference
+  const fetchOrder = useCallback(async () => {
+    try {
+      const response = await api.get(`/api/orders/${id}`);
+      setOrder(response.data.order);
+    } catch (error) {
+      console.error('Failed to fetch order:', error);
+      toast.error('Order not found');
+      navigate('/orders');
+    } finally {
+      setLoading(false);
+    }
+  }, [id, navigate]); // Fixed: Added all dependencies
+
   useEffect(() => {
     fetchOrder();
-  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fetchOrder]); // Fixed: Added fetchOrder dependency
 
   // WebSocket connection for real-time updates
   useEffect(() => {
@@ -60,20 +74,7 @@ const OrderTracking = () => {
       socket.emit('leave_order', id);
       socket.disconnect();
     };
-  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const fetchOrder = async () => {
-    try {
-      const response = await api.get(`/api/orders/${id}`);
-      setOrder(response.data.order);
-    } catch (error) {
-      console.error('Failed to fetch order:', error);
-      toast.error('Order not found');
-      navigate('/orders');
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [id, fetchOrder]); // Fixed: Added fetchOrder dependency
 
   const handleCancel = async () => {
     if (cancelReason.trim().length < 10) {

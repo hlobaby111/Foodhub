@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import api from '../utils/api';
 
 const AuthContext = createContext(null);
@@ -7,50 +7,54 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      loadUser();
-    } else {
-      setLoading(false);
-    }
-  }, []);
-
-  const loadUser = async () => {
+  // Wrap loadUser in useCallback to stabilize reference
+  const loadUser = useCallback(async () => {
     try {
+      // No token needed - handled by httpOnly cookie
       const response = await api.get('/api/auth/profile');
       setUser(response.data.user);
     } catch (error) {
       console.error('Failed to load user:', error);
-      localStorage.removeItem('token');
+      setUser(null);
     } finally {
       setLoading(false);
     }
-  };
+  }, []); // No dependencies needed as it only uses stable functions
 
-  const login = async (email, password) => {
+  useEffect(() => {
+    // Always try to load user on mount (cookie-based)
+    loadUser();
+  }, [loadUser]); // Fixed: Added loadUser dependency
+
+  const login = useCallback(async (email, password) => {
     const response = await api.post('/api/auth/login', { email, password });
-    const { token, user } = response.data;
-    localStorage.setItem('token', token);
-    setUser(user);
+    const { user: userData } = response.data;
+    // Token is set as httpOnly cookie by backend
+    setUser(userData);
     return response.data;
-  };
+  }, []);
 
-  const register = async (userData) => {
+  const register = useCallback(async (userData) => {
     const response = await api.post('/api/auth/register', userData);
-    const { token, user } = response.data;
-    localStorage.setItem('token', token);
-    setUser(user);
+    const { user: newUser } = response.data;
+    // Token is set as httpOnly cookie by backend
+    setUser(newUser);
     return response.data;
-  };
+  }, []);
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    setUser(null);
-  };
+  const logout = useCallback(async () => {
+    try {
+      // Call backend to clear httpOnly cookie
+      await api.post('/api/auth/logout');
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setUser(null);
+    }
+  }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, loadUser }}>
       {children}
     </AuthContext.Provider>
   );
