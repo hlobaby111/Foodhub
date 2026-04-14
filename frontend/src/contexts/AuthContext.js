@@ -32,7 +32,7 @@ export const AuthProvider = ({ children }) => {
     // Token is set as httpOnly cookie by backend
     setUser(userData);
     return response.data;
-  }, []);
+  }, [setUser]); // Fixed: Added setUser dependency
 
   const register = useCallback(async (userData) => {
     const response = await api.post('/api/auth/register', userData);
@@ -40,7 +40,7 @@ export const AuthProvider = ({ children }) => {
     // Token is set as httpOnly cookie by backend
     setUser(newUser);
     return response.data;
-  }, []);
+  }, [setUser]); // Fixed: Added setUser dependency
 
   const logout = useCallback(async () => {
     try {
@@ -51,7 +51,7 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setUser(null);
     }
-  }, []);
+  }, [setUser]); // Fixed: Added setUser dependency
 
   return (
     <AuthContext.Provider value={{ user, loading, login, register, logout, loadUser }}>
