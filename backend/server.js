@@ -2,12 +2,17 @@ require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const cors = require('cors');
+const helmet = require('helmet');
 const { Server } = require('socket.io');
 const connectDB = require('./config/database');
+const redis = require('./config/redis');
 const { initStorage } = require('./config/storage');
 const errorHandler = require('./middleware/errorHandler');
+const { apiLimiter } = require('./middleware/rateLimiter');
 
+// Routes
 const authRoutes = require('./routes/authRoutes');
+const otpAuthRoutes = require('./routes/otpAuthRoutes'); // New OTP-based auth
 const restaurantRoutes = require('./routes/restaurantRoutes');
 const menuRoutes = require('./routes/menuRoutes');
 const orderRoutes = require('./routes/orderRoutes');
@@ -45,11 +50,39 @@ io.on('connection', (socket) => {
   });
 });
 
-app.use(cors({ origin: '*', credentials: true }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Security middleware
+app.use(helmet({
+  contentSecurityPolicy: false, // Disable CSP for API
+  crossOriginEmbedderPolicy: false
+}));
 
-app.use('/api/auth', authRoutes);
+// CORS configuration
+app.use(cors({ 
+  origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
+  credentials: true 
+}));
+
+// Body parsers
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Rate limiting for all API routes
+app.use('/api/', apiLimiter);
+
+// Health check
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    message: 'Food Delivery API is running',
+    websocket: true,
+    redis: redis.status === 'ready',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// API Routes
+app.use('/api/auth', authRoutes); // Old auth (email/password)
+app.use('/api/otp-auth', otpAuthRoutes); // New OTP-based auth
 app.use('/api/restaurants', restaurantRoutes);
 app.use('/api/menu', menuRoutes);
 app.use('/api/orders', orderRoutes);

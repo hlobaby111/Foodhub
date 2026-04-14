@@ -14,10 +14,10 @@ export const AuthProvider = ({ children }) => {
 
   const loadUser = async () => {
     try {
-      const token = await AsyncStorage.getItem('token');
+      const accessToken = await AsyncStorage.getItem('accessToken');
       const userData = await AsyncStorage.getItem('user');
       
-      if (token && userData) {
+      if (accessToken && userData) {
         setUser(JSON.parse(userData));
       }
     } catch (error) {
@@ -71,11 +71,16 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      await AsyncStorage.removeItem('token');
+      // Call logout API to blacklist token
+      await api.post('/api/otp-auth/logout');
+    } catch (error) {
+      console.error('Logout API error:', error);
+    } finally {
+      // Clear local storage
+      await AsyncStorage.removeItem('accessToken');
+      await AsyncStorage.removeItem('refreshToken');
       await AsyncStorage.removeItem('user');
       setUser(null);
-    } catch (error) {
-      console.error('Error logging out:', error);
     }
   };
 

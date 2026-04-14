@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -6,7 +6,10 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useAuth } from '../contexts/AuthContext';
 import { theme } from '../utils/theme';
 
-// Auth Screens
+// Splash & Auth Screens
+import SplashScreen from '../screens/SplashScreen';
+import PhoneInputScreen from '../screens/PhoneInputScreen';
+import OTPVerificationScreen from '../screens/OTPVerificationScreen';
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 
@@ -22,7 +25,7 @@ import ProfileScreen from '../screens/ProfileScreen';
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// Auth Stack
+// Auth Stack with OTP flow
 function AuthStack() {
   return (
     <Stack.Navigator
@@ -30,6 +33,8 @@ function AuthStack() {
         headerShown: false,
       }}
     >
+      <Stack.Screen name="PhoneInput" component={PhoneInputScreen} />
+      <Stack.Screen name="OTPVerification" component={OTPVerificationScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Register" component={RegisterScreen} />
     </Stack.Navigator>
@@ -188,12 +193,13 @@ function MainTabs() {
   );
 }
 
-// Root Navigator
+// Root Navigator with Splash Screen
 export default function AppNavigator() {
   const { user, loading } = useAuth();
+  const [showSplash, setShowSplash] = useState(true);
 
-  if (loading) {
-    return null; // Or a loading screen
+  if (loading || showSplash) {
+    return <SplashScreen onFinish={() => setShowSplash(false)} />;
   }
 
   return (

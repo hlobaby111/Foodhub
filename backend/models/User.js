@@ -1,15 +1,17 @@
 const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
-  name: { type: String, required: true, trim: true },
-  email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-  password: { type: String, required: true },
-  phone: { type: String, trim: true },
+  name: { type: String, trim: true },
+  email: { type: String, lowercase: true, trim: true, sparse: true },
+  password: { type: String }, // Optional for OTP-based auth
+  phone: { type: String, required: true, unique: true, trim: true },
   role: {
     type: String,
     enum: ['customer', 'restaurant_owner', 'admin', 'delivery_partner'],
     default: 'customer'
   },
+  isPhoneVerified: { type: Boolean, default: false },
+  isEmailVerified: { type: Boolean, default: false },
   address: { street: String, city: String, state: String, pincode: String },
   savedAddresses: [{
     label: { type: String, default: 'Home' },
@@ -24,7 +26,15 @@ const userSchema = new mongoose.Schema({
   currentLocation: { lat: Number, lng: Number, updatedAt: Date },
   isAvailable: { type: Boolean, default: true },
   isActive: { type: Boolean, default: true },
-  createdAt: { type: Date, default: Date.now }
+  lastLogin: { type: Date },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
+}, {
+  timestamps: true
 });
+
+// Index for faster queries
+userSchema.index({ phone: 1 });
+userSchema.index({ email: 1 });
 
 module.exports = mongoose.model('User', userSchema);
