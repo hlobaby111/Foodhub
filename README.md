@@ -1,189 +1,452 @@
-# FoodHub - Food Delivery Application
+# 🍔 FoodHub - Full-Stack Food Delivery Platform
 
-A full-stack food delivery web application built with React, Node.js/Express, MongoDB, and WebSocket for real-time tracking.
+A production-ready, enterprise-grade food delivery application similar to Zomato, featuring a React Native mobile app and React web application with secure OTP-based authentication.
 
-## Architecture
+[![React Native](https://img.shields.io/badge/React_Native-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactnative.dev/)
+[![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-4EA94B?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
+[![Redis](https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io/)
+
+---
+
+## 📱 Features
+
+### Mobile App (Customer)
+- 🎨 **Splash Screen** with Zomato-style animation
+- 📞 **OTP Authentication** via phone number (AuthKey integration)
+- 🍽️ **Browse Restaurants** with search & filters
+- 🛒 **Cart Management** with restaurant validation
+- 💳 **Secure Checkout** with address management
+- 📦 **Real-time Order Tracking** via WebSocket
+- 📜 **Order History** with detailed tracking
+- 👤 **Profile Management**
+
+### Web App (Full Platform)
+- 👥 **Multi-role Support**: Customer, Restaurant Owner, Delivery Partner, Admin
+- 📊 **Restaurant Dashboard** for owners
+- 🚚 **Delivery Dashboard** for partners
+- 👑 **Admin Dashboard** for platform management
+- 📧 **Email/Password Authentication**
+- All customer features from mobile app
+
+---
+
+## 🏗️ Tech Stack
+
+### Mobile App
+- **Framework:** React Native (Expo ~50.0.0)
+- **UI:** React Native Paper, Material Icons
+- **Navigation:** React Navigation v6
+- **State:** Context API (Auth + Cart)
+- **Networking:** Axios, Socket.io Client
+- **Storage:** AsyncStorage
+
+### Web App
+- **Framework:** React 18
+- **Styling:** Tailwind CSS
+- **UI Components:** Shadcn UI
+- **Routing:** React Router v6
+- **Icons:** Lucide React
+
+### Backend
+- **Runtime:** Node.js v20+
+- **Framework:** Express.js
+- **Database:** MongoDB (Mongoose)
+- **Cache:** Redis (ioredis)
+- **Real-time:** Socket.io
+- **Authentication:** JWT (Access + Refresh Tokens)
+- **OTP Service:** AuthKey API
+- **Payment:** Razorpay
+- **Security:** Helmet, CORS, Rate Limiting
+
+---
+
+## 📂 Project Structure
 
 ```
-Frontend (React + Tailwind + Shadcn UI) → REST API + WebSocket → Backend (Node.js + Express) → MongoDB
+foodhub/
+├── mobile/                 # React Native Mobile App
+│   ├── src/
+│   │   ├── screens/       # App screens (9 screens)
+│   │   ├── components/    # Reusable components
+│   │   ├── contexts/      # Auth & Cart contexts
+│   │   ├── navigation/    # Navigation setup
+│   │   ├── services/      # API service
+│   │   └── utils/         # Theme & constants
+│   ├── App.js
+│   └── package.json
+│
+├── frontend/              # React Web App
+│   ├── src/
+│   │   ├── pages/        # Page components
+│   │   ├── components/   # UI components
+│   │   ├── contexts/     # Global state
+│   │   └── utils/        # Utilities
+│   └── package.json
+│
+├── backend/               # Node.js Backend
+│   ├── config/           # Configuration (DB, Redis)
+│   ├── controllers/      # Route controllers
+│   ├── middleware/       # Auth, validation, rate limiting
+│   ├── models/           # Mongoose models
+│   ├── routes/           # API routes
+│   ├── services/         # Business logic (Token, OTP)
+│   ├── utils/            # Helper functions
+│   └── server.js
+│
+├── CODE_QUALITY_FIXES.md # Security & code quality guide
+└── README.md
 ```
 
-## User Roles
+---
 
-| Role | Description |
-|------|------------|
-| **Customer** | Browse restaurants, order food, track deliveries, rate & review |
-| **Restaurant Owner** | Manage restaurants, menus, orders, settings (veg/non-veg, photos) |
-| **Delivery Partner** | Accept deliveries, share live location, mark delivered |
-| **Admin** | Approve restaurants, manage users, view analytics, manage banners |
-
-## Setup Instructions
+## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js 18+
-- MongoDB
-- npm/yarn
+- Node.js 18+ ([Download](https://nodejs.org/))
+- MongoDB ([Install Guide](https://docs.mongodb.com/manual/installation/))
+- Redis ([Install Guide](https://redis.io/docs/getting-started/))
+- Expo CLI: `npm install -g expo-cli`
 
-### Backend Setup
+### 1. Clone Repository
+```bash
+git clone https://github.com/hlobaby111/Foodhub.git
+cd Foodhub
+```
+
+### 2. Backend Setup
+
 ```bash
 cd backend
-cp .env.example .env  # Configure environment variables
 npm install
-node server.js        # Starts on port 8001 with WebSocket
+
+# Create .env file
+cp .env.example .env
+# Edit .env and add your credentials
 ```
 
-### Frontend Setup
-```bash
-cd frontend
-yarn install
-yarn start            # Starts on port 3000
-```
-
-### Environment Variables
-
-**Backend (.env)**
-```
+**Required Environment Variables:**
+```env
+# Database
 MONGO_URL=mongodb://localhost:27017
 DB_NAME=food_delivery
-JWT_SECRET=your-secret-key
-RAZORPAY_KEY_ID=rzp_test_xxx
-RAZORPAY_KEY_SECRET=test_secret_xxx
-EMERGENT_LLM_KEY=your-storage-key
+
+# JWT Secrets
+JWT_SECRET=your-secret-key-change-in-production
+JWT_REFRESH_SECRET=your-refresh-secret-change-in-production
+
+# Redis
+REDIS_HOST=localhost
+REDIS_PORT=6379
+
+# AuthKey (OTP Service)
+AUTHKEY_API_KEY=your-authkey-api-key
+AUTHKEY_TEMPLATE_ID=your-template-id
+
+# Razorpay (Payment)
+RAZORPAY_KEY_ID=your-razorpay-key
+RAZORPAY_KEY_SECRET=your-razorpay-secret
+
+# Server
 PORT=8001
+NODE_ENV=development
 ```
 
-**Frontend (.env)**
-```
-REACT_APP_BACKEND_URL=http://localhost:8001
+**Start Backend:**
+```bash
+node server.js
+# Server runs on http://localhost:8001
 ```
 
-## API Documentation
+### 3. Mobile App Setup
+
+```bash
+cd mobile
+npm install
+
+# Update .env with backend URL
+echo "BACKEND_URL=http://localhost:8001" > .env
+```
+
+**Run Mobile App:**
+```bash
+npm start
+# Scan QR code with Expo Go app
+```
+
+**For Device-Specific URLs:**
+- **Android Emulator:** `BACKEND_URL=http://10.0.2.2:8001`
+- **iOS Simulator:** `BACKEND_URL=http://localhost:8001`
+- **Physical Device:** `BACKEND_URL=http://YOUR_COMPUTER_IP:8001`
+
+### 4. Web App Setup
+
+```bash
+cd frontend
+npm install
+
+# Create .env
+echo "REACT_APP_BACKEND_URL=http://localhost:8001" > .env
+
+# Start web app
+npm start
+# Opens on http://localhost:3000
+```
+
+---
+
+## 🔐 Authentication
+
+### Mobile App (OTP-based)
+1. Enter 10-digit phone number
+2. Receive OTP via SMS (AuthKey)
+3. Verify OTP (auto-login/signup)
+4. Access tokens (15min) + Refresh tokens (7 days)
+
+**Test Mode:** In development, OTP is logged to console
+
+### Web App (Email/Password)
+- Traditional login with email/password
+- Supports httpOnly cookies (secure)
+- Token refresh on expiry
+
+---
+
+## 🧪 Testing
+
+### Test Credentials
+```
+Customer Account:
+Email: customer@test.com
+Password: customer123
+
+Restaurant Owner:
+Email: owner@test.com
+Password: owner123
+
+Delivery Partner:
+Email: delivery@test.com
+Password: delivery123
+
+Admin:
+Email: admin@foodhub.com
+Password: Admin@123
+```
+
+### Test Phone (Development)
+Any 10-digit number starting with 6-9 (Indian format)
+
+---
+
+## 📡 API Endpoints
 
 ### Authentication
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| POST | `/api/auth/register` | Register new user | No |
-| POST | `/api/auth/login` | Login | No |
-| GET | `/api/auth/profile` | Get current user | Yes |
-| PUT | `/api/auth/profile` | Update profile | Yes |
+- `POST /api/otp-auth/send-otp` - Send OTP
+- `POST /api/otp-auth/verify-otp` - Verify OTP & login
+- `POST /api/otp-auth/refresh-token` - Refresh access token
+- `POST /api/otp-auth/logout` - Logout
+- `GET /api/otp-auth/me` - Get current user
 
 ### Restaurants
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| GET | `/api/restaurants` | List restaurants (paginated, filterable) | No |
-| GET | `/api/restaurants/:id` | Restaurant detail + menu | No |
-| GET | `/api/restaurants/my` | Owner's restaurants | Owner |
-| POST | `/api/restaurants` | Create restaurant | Owner |
-| PUT | `/api/restaurants/:id` | Update restaurant | Owner |
-| PUT | `/api/restaurants/:id/settings` | Update settings (veg, photos, time) | Owner |
-
-### Menu Items
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| GET | `/api/menu?restaurantId=xxx` | Get menu items | No |
-| GET | `/api/menu/my` | Owner's menu items | Owner |
-| POST | `/api/menu` | Create menu item | Owner |
-| PUT | `/api/menu/:id` | Update menu item | Owner |
-| DELETE | `/api/menu/:id` | Delete menu item | Owner |
+- `GET /api/restaurants` - List restaurants
+- `GET /api/restaurants/:id` - Get restaurant details
+- `POST /api/restaurants` - Create restaurant (owner)
 
 ### Orders
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| POST | `/api/orders` | Place order | Customer |
-| GET | `/api/orders/my` | Customer's orders | Customer |
-| GET | `/api/orders/:id` | Order details | Auth |
-| PUT | `/api/orders/:id/cancel` | Cancel order (min 10 char reason) | Customer |
-| PUT | `/api/orders/:id/status` | Update order status | Owner |
-| POST | `/api/orders/verify-payment` | Verify Razorpay payment | Customer |
-| GET | `/api/orders/restaurant` | Restaurant's orders | Owner |
-| GET | `/api/orders/notifications/list` | Get notifications | Owner |
-| PUT | `/api/orders/notifications/read` | Mark notifications read | Owner |
+- `POST /api/orders` - Place order
+- `GET /api/orders/my` - My orders
+- `GET /api/orders/:id` - Order details
+- `PUT /api/orders/:id/cancel` - Cancel order
 
-### Addresses
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| GET | `/api/addresses` | Get saved addresses | Yes |
-| POST | `/api/addresses` | Add new address | Yes |
-| PUT | `/api/addresses/:id` | Update address | Yes |
-| DELETE | `/api/addresses/:id` | Delete address | Yes |
-| PUT | `/api/addresses/location/current` | Update live location | Yes |
+### Menu
+- `GET /api/menu?restaurantId=:id` - Get menu
 
-### Delivery Partner
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| GET | `/api/delivery/dashboard` | Dashboard stats | Delivery |
-| GET | `/api/delivery/available` | Available orders for pickup | Delivery |
-| PUT | `/api/delivery/accept/:id` | Accept delivery | Delivery |
-| PUT | `/api/delivery/location/:id` | Update live location | Delivery |
-| PUT | `/api/delivery/delivered/:id` | Mark as delivered | Delivery |
-| PUT | `/api/delivery/toggle-availability` | Go online/offline | Delivery |
+**Full API Documentation:** 32+ endpoints
 
-### Admin
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| GET | `/api/admin/stats` | Dashboard statistics | Admin |
-| GET | `/api/admin/users` | All users | Admin |
-| PUT | `/api/admin/users/:id/toggle-status` | Activate/deactivate user | Admin |
-| GET | `/api/admin/restaurants/pending` | Pending restaurant approvals | Admin |
-| GET | `/api/admin/restaurants` | All restaurants | Admin |
-| PUT | `/api/admin/restaurants/:id/status` | Approve/reject restaurant | Admin |
-| GET | `/api/admin/orders` | All orders | Admin |
-| POST | `/api/admin/banners` | Add banner | Admin |
+---
 
-### Search & Banners
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| GET | `/api/search?q=query` | Instant search (restaurants + dishes) | No |
-| GET | `/api/banners` | Get active banners | No |
+## 🔒 Security Features
 
-### Reviews
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| POST | `/api/reviews` | Submit review | Customer |
-| GET | `/api/reviews/restaurant/:id` | Restaurant reviews | No |
+- ✅ **JWT Authentication** with access & refresh tokens
+- ✅ **Token Rotation** on refresh
+- ✅ **httpOnly Cookies** (web app)
+- ✅ **Redis-based** token blacklisting
+- ✅ **Rate Limiting** (API, Auth, OTP)
+- ✅ **Input Validation** (express-validator)
+- ✅ **Security Headers** (Helmet.js)
+- ✅ **CORS** configuration
+- ✅ **Password Hashing** (bcrypt)
+- ✅ **OTP Expiry** (5 minutes)
+- ✅ **Failed Attempt Blocking** (5 attempts/hour)
 
-### WebSocket Events
-| Event | Direction | Description |
-|-------|-----------|-------------|
-| `join_order` | Client → Server | Join order room for updates |
-| `leave_order` | Client → Server | Leave order room |
-| `order_update` | Server → Client | Order status changed |
-| `delivery_location` | Server → Client | Delivery partner location update |
+---
 
-**WebSocket Path:** `/api/socket.io`
+## 📱 Mobile App Screenshots
 
-## Order Flow
+| Splash | Phone Input | OTP | Home |
+|--------|-------------|-----|------|
+| 🍔 Animated Logo | 📱 Enter Number | 🔢 Verify OTP | 🍽️ Browse |
 
-```
-Customer places order → status: PLACED
-    ↓
-Restaurant accepts → status: ACCEPTED
-    ↓
-Restaurant prepares → status: PREPARING
-    ↓
-Food ready → status: READY (available for delivery pickup)
-    ↓
-Delivery partner picks up → status: PICKED_UP
-    ↓
-On the way (live tracking) → status: OUT_FOR_DELIVERY
-    ↓
-Delivered → status: DELIVERED
+| Restaurant | Cart | Checkout | Tracking |
+|------------|------|----------|----------|
+| 🍱 Menu | 🛒 Items | 💳 Payment | 📦 Live Status |
+
+---
+
+## 🌐 Deployment
+
+### Backend (Node.js)
+- **Recommended:** Railway, Render, DigitalOcean
+- **Requirements:** MongoDB, Redis
+- Set environment variables
+- Enable HTTPS
+
+### Mobile App
+```bash
+# Build for production
+cd mobile
+expo build:android  # APK for Android
+expo build:ios      # IPA for iOS
+
+# Or publish to Expo
+expo publish
 ```
 
-**Cancel Flow:** Customer can cancel before OUT_FOR_DELIVERY → requires 10+ char reason → notification sent to restaurant dashboard.
+### Web App
+```bash
+cd frontend
+npm run build
+# Deploy to Vercel, Netlify, or any static host
+```
 
-## Test Credentials
+---
 
-| Role | Email | Password |
-|------|-------|----------|
-| Admin | admin@foodhub.com | Admin@123 |
-| Customer | customer@test.com | customer123 |
-| Restaurant Owner | owner@test.com | owner123 |
-| Delivery Partner | delivery@test.com | delivery123 |
+## 🛠️ Development
 
-## Tech Stack
-- **Frontend:** React 19, Tailwind CSS, Shadcn UI, Socket.io Client, Axios
-- **Backend:** Node.js, Express, Mongoose, Socket.io, JWT, Razorpay
-- **Database:** MongoDB
-- **Real-time:** WebSocket (Socket.io)
-- **Storage:** Emergent Object Storage (image uploads)
+### Install Dependencies
+```bash
+# Install all dependencies
+npm run install:all
+
+# Or individually
+cd backend && npm install
+cd frontend && npm install
+cd mobile && npm install
+```
+
+### Start Development Servers
+```bash
+# Terminal 1 - Backend
+cd backend && npm start
+
+# Terminal 2 - Web
+cd frontend && npm start
+
+# Terminal 3 - Mobile
+cd mobile && npm start
+```
+
+### Code Quality
+See `CODE_QUALITY_FIXES.md` for:
+- Security best practices
+- React hooks guidelines
+- Component refactoring tips
+
+---
+
+## 📚 Documentation
+
+- **`/mobile/README.md`** - Mobile app setup & features
+- **`/mobile/SETUP_GUIDE.md`** - Detailed mobile app guide
+- **`/CODE_QUALITY_FIXES.md`** - Security & code quality
+- **`/MOBILE_APP_SUMMARY.md`** - Feature overview
+- **`/QUICK_REFERENCE.md`** - Quick commands reference
+
+---
+
+## 🐛 Troubleshooting
+
+### Backend not connecting
+```bash
+# Check MongoDB
+mongosh
+
+# Check Redis
+redis-cli ping
+
+# Check backend logs
+tail -f /var/log/backend.log
+```
+
+### Mobile app can't reach backend
+- Use correct IP for your device type
+- Ensure backend is running
+- Check firewall settings
+- Same WiFi network (for physical devices)
+
+### OTP not sending
+- Verify AuthKey credentials in `.env`
+- Check console logs (development mode)
+- Verify phone number format (10 digits, starts with 6-9)
+
+---
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create feature branch: `git checkout -b feature/AmazingFeature`
+3. Commit changes: `git commit -m 'Add AmazingFeature'`
+4. Push to branch: `git push origin feature/AmazingFeature`
+5. Open Pull Request
+
+---
+
+## 📝 License
+
+This project is licensed under the MIT License.
+
+---
+
+## 👨‍💻 Author
+
+**Your Name**
+- GitHub: [@hlobaby111](https://github.com/hlobaby111)
+
+---
+
+## 🙏 Acknowledgments
+
+- React Native & Expo team
+- MongoDB & Redis communities
+- AuthKey for OTP service
+- Razorpay for payment integration
+
+---
+
+## 📊 Project Stats
+
+- **Lines of Code:** ~15,000+
+- **Files:** 100+
+- **API Endpoints:** 32+
+- **Mobile Screens:** 9
+- **Web Pages:** 15+
+- **Security Features:** 10+
+
+---
+
+## 🚀 What's Next?
+
+- [ ] Push notifications (Firebase)
+- [ ] Google Maps integration
+- [ ] In-app reviews & ratings
+- [ ] Referral system
+- [ ] Loyalty points
+- [ ] Multi-language support
+- [ ] Dark mode
+
+---
+
+**Built with ❤️ using MERN Stack + React Native**
+
+**⭐ Star this repo if you find it useful!**
