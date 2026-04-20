@@ -6,7 +6,7 @@ import { useCart } from '../contexts/CartContext';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
+import LocationModal from '../components/LocationModal';
 import {
   Search, Star, Clock, MapPin, ChevronLeft, ChevronRight,
   Navigation2, Check, X, ShoppingCart, Leaf, Plus
@@ -98,8 +98,7 @@ const Home = () => {
   const [banners, setBanners] = useState([]);
   const [currentBanner, setCurrentBanner] = useState(0);
   const [userLocation, setUserLocation] = useState('Mumbai, Maharashtra');
-  const [showLocationDialog, setShowLocationDialog] = useState(false);
-  const [tempLocation, setTempLocation] = useState('');
+  const [showLocationModal, setShowLocationModal] = useState(false);
   const navigate = useNavigate();
   const searchTimeout = useRef(null);
 
@@ -152,9 +151,12 @@ const Home = () => {
     }
   };
 
-  const handleConfirmLocation = () => {
-    if (tempLocation.trim()) setUserLocation(tempLocation.trim());
-    setShowLocationDialog(false);
+  const handleLocationSelect = (location) => {
+    const label = location.city ? `${location.address}, ${location.city}` : location.address;
+    if (label) {
+      setUserLocation(label);
+    }
+    setShowLocationModal(false);
   };
 
   const locations = ['Bandra, Mumbai', 'Andheri, Mumbai', 'Juhu, Mumbai', 'Colaba, Mumbai'];
@@ -164,7 +166,7 @@ const Home = () => {
       {/* Location Bar */}
       <div className="bg-white border-b border-border/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <button onClick={() => { setTempLocation(userLocation); setShowLocationDialog(true); }} className="flex items-center gap-2 py-3 w-full sm:w-auto" data-testid="location-button">
+          <button onClick={() => setShowLocationModal(true)} className="flex items-center gap-2 py-3 w-full sm:w-auto" data-testid="location-button">
             <Navigation2 className="w-5 h-5 text-primary flex-shrink-0" />
             <div className="text-left">
               <p className="text-[10px] sm:text-xs text-muted-foreground leading-none">Deliver to</p>
@@ -175,22 +177,11 @@ const Home = () => {
         </div>
       </div>
 
-      <Dialog open={showLocationDialog} onOpenChange={setShowLocationDialog}>
-        <DialogContent><DialogHeader><DialogTitle>Set delivery location</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            <Input value={tempLocation} onChange={(e) => setTempLocation(e.target.value)} placeholder="Enter your location..." data-testid="location-input" />
-            <div className="space-y-1.5">
-              {['Mumbai, Maharashtra', 'Bandra West, Mumbai', 'Andheri East, Mumbai', 'Powai, Mumbai'].map(loc => (
-                <button key={loc} className="flex items-center gap-2 w-full text-left p-2 rounded-lg hover:bg-muted text-sm" onClick={() => setTempLocation(loc)}>
-                  <MapPin className="w-4 h-4 text-muted-foreground flex-shrink-0" />{loc}
-                  {tempLocation === loc && <Check className="w-4 h-4 text-primary ml-auto" />}
-                </button>
-              ))}
-            </div>
-            <Button className="w-full rounded-full" onClick={handleConfirmLocation} data-testid="confirm-location-button">Confirm Location</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <LocationModal
+        isOpen={showLocationModal}
+        onClose={() => setShowLocationModal(false)}
+        onLocationSelect={handleLocationSelect}
+      />
 
       {/* Search */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-4 sm:pt-6 relative">

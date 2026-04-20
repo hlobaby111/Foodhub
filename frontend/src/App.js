@@ -1,37 +1,51 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { CartProvider } from './contexts/CartContext';
 import { Toaster } from './components/ui/sonner';
 import Navigation from './components/Navigation';
 import ProtectedRoute from './components/ProtectedRoute';
 import Home from './pages/Home';
-import Login from './pages/Login';
-import Register from './pages/Register';
+import AuthSplash from './pages/AuthSplash';
+import PhoneAuth from './pages/PhoneAuth';
+import OTPAuth from './pages/OTPAuth';
 import RestaurantDetail from './pages/RestaurantDetail';
 import Cart from './pages/Cart';
 import Orders from './pages/Orders';
 import OrderTracking from './pages/OrderTracking';
 import Profile from './pages/Profile';
+import AccountMenu from './pages/AccountMenu';
 import OwnerDashboard from './pages/OwnerDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import DeliveryDashboard from './pages/DeliveryDashboard';
 import { useCart } from './contexts/CartContext';
 import { useAuth } from './contexts/AuthContext';
-import { Navigate } from 'react-router-dom';
 
 const AppContent = () => {
   const { cartCount } = useCart();
   const { user } = useAuth();
+  const location = useLocation();
+  const isAuthRoute = location.pathname.startsWith('/auth/');
+
 
   return (
     <div className="min-h-screen bg-background">
-      <Navigation cartItemsCount={cartCount} />
+      {!isAuthRoute && <Navigation cartItemsCount={cartCount} />}
       <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/restaurant/:id" element={<RestaurantDetail />} />
+        <Route path="/auth/splash" element={<AuthSplash />} />
+        <Route path="/auth/phone" element={<PhoneAuth />} />
+        <Route path="/auth/otp" element={<OTPAuth />} />
+
+        <Route path="/" element={
+          user ? <Home /> : <Navigate to="/auth/splash" replace />
+        } />
+        <Route path="/login" element={<Navigate to="/auth/phone" replace />} />
+        <Route path="/register" element={<Navigate to="/auth/phone" replace />} />
+        <Route path="/restaurant/:id" element={
+          <ProtectedRoute allowedRoles={['customer']}>
+            <RestaurantDetail />
+          </ProtectedRoute>
+        } />
         <Route path="/cart" element={
           <ProtectedRoute allowedRoles={['customer']}>
             <Cart />
@@ -53,6 +67,11 @@ const AppContent = () => {
             <Profile />
           </ProtectedRoute>
         } />
+        <Route path="/account" element={
+          <ProtectedRoute allowedRoles={['customer']}>
+            <AccountMenu />
+          </ProtectedRoute>
+        } />
         <Route path="/owner/dashboard" element={
           <ProtectedRoute allowedRoles={['restaurant_owner']}>
             <OwnerDashboard />
@@ -68,6 +87,7 @@ const AppContent = () => {
             <DeliveryDashboard />
           </ProtectedRoute>
         } />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <Toaster position="bottom-right" />
     </div>

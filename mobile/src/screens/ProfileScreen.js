@@ -4,262 +4,271 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  TextInput,
   TouchableOpacity,
-  Alert,
+  ActivityIndicator,
 } from 'react-native';
-import { List, Divider, Avatar, Portal, Dialog, TextInput, Button } from 'react-native-paper';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
+import api from '../services/api';
 import { theme } from '../utils/theme';
 
-export default function ProfileScreen({ navigation }) {
-  const { user, logout, updateProfile } = useAuth();
-  const [showEditDialog, setShowEditDialog] = useState(false);
-  const [name, setName] = useState(user?.name || '');
-  const [phone, setPhone] = useState(user?.phone || '');
-  const [updating, setUpdating] = useState(false);
-
-  const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            await logout();
-          },
-        },
-      ]
-    );
-  };
-
-  const handleUpdateProfile = async () => {
-    if (!name.trim() || !phone.trim()) {
-      Alert.alert('Error', 'Please fill all fields');
-      return;
+const ProfileScreen = () => {
+  const { user } = useAuth();
+  const [formData, setFormData] = useState({
+    name: user?.name || '',
+    phone: user?.phone || '',
+    address: {
+      street: user?.address?.street || '',
+      city: user?.address?.city || '',
+      state: user?.address?.state || '',
+      pincode: user?.address?.pincode || ''
     }
+  });
+  const [loading, setLoading] = useState(false);
 
+  const handleSubmit = async () => {
+    setLoading(true);
     try {
-      setUpdating(true);
-      const result = await updateProfile({ name: name.trim(), phone: phone.trim() });
-      
-      if (result.success) {
-        setShowEditDialog(false);
-        Alert.alert('Success', 'Profile updated successfully');
-      } else {
-        Alert.alert('Error', result.message);
-      }
+      await api.put('/api/auth/profile', formData);
+      alert('Profile updated successfully');
     } catch (error) {
-      Alert.alert('Error', 'Failed to update profile');
+      alert(error.response?.data?.message || 'Failed to update profile');
     } finally {
-      setUpdating(false);
+      setLoading(false);
     }
-  };
-
-  const getInitials = () => {
-    if (!user?.name) return 'U';
-    return user.name
-      .split(' ')
-      .map((n) => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
   };
 
   return (
-    <View style={styles.container}>
-      <ScrollView style={styles.scrollView}>
-        {/* Profile Header */}
-        <View style={styles.header}>
-          <Avatar.Text
-            size={80}
-            label={getInitials()}
-            style={{ backgroundColor: theme.colors.primary }}
-          />
-          <Text style={styles.name}>{user?.name}</Text>
-          <Text style={styles.email}>{user?.email}</Text>
-          <Text style={styles.phone}>{user?.phone}</Text>
-          
-          <TouchableOpacity
-            style={styles.editButton}
-            onPress={() => {
-              setName(user?.name || '');
-              setPhone(user?.phone || '');
-              setShowEditDialog(true);
-            }}
-          >
-            <Icon name="pencil" size={16} color={theme.colors.primary} />
-            <Text style={styles.editButtonText}>Edit Profile</Text>
-          </TouchableOpacity>
+    <ScrollView style={styles.container}>
+      <Text style={styles.title}>My Profile</Text>
+
+      {/* Personal Info */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Icon name="account" size={20} color={theme.colors.textSecondary} />
+          <Text style={styles.sectionTitle}>Personal Info</Text>
         </View>
 
-        <Divider />
-
-        {/* Menu Options */}
-        <View style={styles.menuSection}>
-          <List.Item
-            title="My Orders"
-            description="View all your orders"
-            left={(props) => <List.Icon {...props} icon="receipt-text" color={theme.colors.primary} />}
-            right={(props) => <List.Icon {...props} icon="chevron-right" />}
-            onPress={() => navigation.navigate('Orders')}
-          />
-          <Divider />
-          
-          <List.Item
-            title="Saved Addresses"
-            description="Manage delivery addresses"
-            left={(props) => <List.Icon {...props} icon="map-marker" color={theme.colors.primary} />}
-            right={(props) => <List.Icon {...props} icon="chevron-right" />}
-            onPress={() => {
-              Alert.alert('Info', 'Address management available in checkout');
-            }}
-          />
-          <Divider />
-          
-          <List.Item
-            title="Help & Support"
-            description="Get help with your orders"
-            left={(props) => <List.Icon {...props} icon="help-circle" color={theme.colors.primary} />}
-            right={(props) => <List.Icon {...props} icon="chevron-right" />}
-            onPress={() => {
-              Alert.alert('Help & Support', 'Contact us at support@foodhub.com');
-            }}
-          />
-          <Divider />
-          
-          <List.Item
-            title="About"
-            description="App version 1.0.0"
-            left={(props) => <List.Icon {...props} icon="information" color={theme.colors.primary} />}
-            right={(props) => <List.Icon {...props} icon="chevron-right" />}
-            onPress={() => {
-              Alert.alert('FoodHub', 'Version 1.0.0\n\nFood delivery made easy');
-            }}
+        <View style={styles.formGroup}>
+          <Text style={styles.label}>Full Name</Text>
+          <TextInput
+            style={styles.input}
+            value={formData.name}
+            onChangeText={(text) => setFormData({ ...formData, name: text })}
+            placeholderTextColor={theme.colors.textSecondary}
           />
         </View>
 
-        <Divider style={{ marginTop: theme.spacing.lg }} />
-
-        {/* Logout Button */}
-        <View style={styles.logoutSection}>
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <Icon name="logout" size={20} color={theme.colors.red[500]} />
-            <Text style={styles.logoutText}>Logout</Text>
-          </TouchableOpacity>
+        <View style={styles.formGroup}>
+          <Text style={styles.label}>Email</Text>
+          <View style={styles.disabledInput}>
+            <Icon name="email" size={16} color={theme.colors.textSecondary} />
+            <Text style={styles.disabledInputText}>{user?.email}</Text>
+          </View>
         </View>
-      </ScrollView>
 
-      {/* Edit Profile Dialog */}
-      <Portal>
-        <Dialog visible={showEditDialog} onDismiss={() => setShowEditDialog(false)}>
-          <Dialog.Title>Edit Profile</Dialog.Title>
-          <Dialog.Content>
+        <View style={styles.formGroup}>
+          <Text style={styles.label}>Phone</Text>
+          <TextInput
+            style={styles.input}
+            value={formData.phone}
+            onChangeText={(text) => setFormData({ ...formData, phone: text })}
+            placeholderTextColor={theme.colors.textSecondary}
+            keyboardType="phone-pad"
+          />
+        </View>
+      </View>
+
+      {/* Delivery Address */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Icon name="map-marker" size={20} color={theme.colors.textSecondary} />
+          <Text style={styles.sectionTitle}>Delivery Address</Text>
+        </View>
+
+        <View style={styles.formGroup}>
+          <Text style={styles.label}>Street</Text>
+          <TextInput
+            style={styles.input}
+            value={formData.address.street}
+            onChangeText={(text) =>
+              setFormData({
+                ...formData,
+                address: { ...formData.address, street: text }
+              })
+            }
+            placeholderTextColor={theme.colors.textSecondary}
+          />
+        </View>
+
+        <View style={styles.formRow}>
+          <View style={[styles.formGroup, { flex: 1 }]}>
+            <Text style={styles.label}>City</Text>
             <TextInput
-              label="Full Name"
-              value={name}
-              onChangeText={setName}
-              mode="outlined"
               style={styles.input}
+              value={formData.address.city}
+              onChangeText={(text) =>
+                setFormData({
+                  ...formData,
+                  address: { ...formData.address, city: text }
+                })
+              }
+              placeholderTextColor={theme.colors.textSecondary}
             />
+          </View>
+
+          <View style={[styles.formGroup, { flex: 1 }]}>
+            <Text style={styles.label}>State</Text>
             <TextInput
-              label="Phone"
-              value={phone}
-              onChangeText={setPhone}
-              mode="outlined"
-              keyboardType="phone-pad"
               style={styles.input}
+              value={formData.address.state}
+              onChangeText={(text) =>
+                setFormData({
+                  ...formData,
+                  address: { ...formData.address, state: text }
+                })
+              }
+              placeholderTextColor={theme.colors.textSecondary}
             />
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={() => setShowEditDialog(false)}>Cancel</Button>
-            <Button
-              onPress={handleUpdateProfile}
-              loading={updating}
-              disabled={updating}
-              textColor={theme.colors.primary}
-            >
-              Save
-            </Button>
-          </Dialog.Actions>
-        </Dialog>
-      </Portal>
-    </View>
+          </View>
+
+          <View style={[styles.formGroup, { flex: 1 }]}>
+            <Text style={styles.label}>Pincode</Text>
+            <TextInput
+              style={styles.input}
+              value={formData.address.pincode}
+              onChangeText={(text) =>
+                setFormData({
+                  ...formData,
+                  address: { ...formData.address, pincode: text }
+                })
+              }
+              placeholderTextColor={theme.colors.textSecondary}
+              keyboardType="numeric"
+            />
+          </View>
+        </View>
+      </View>
+
+      {/* Save Button */}
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity
+          style={[styles.saveButton, loading && styles.saveButtonDisabled]}
+          onPress={handleSubmit}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="white" size="small" />
+          ) : (
+            <>
+              <Icon name="content-save" size={16} color="white" />
+              <Text style={styles.saveButtonText}>Save Changes</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
+
+      <View style={{ height: 20 }} />
+    </ScrollView>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
   },
-  scrollView: {
-    flex: 1,
-  },
-  header: {
-    backgroundColor: theme.colors.surface,
-    padding: theme.spacing.lg,
-    alignItems: 'center',
-  },
-  name: {
-    fontSize: theme.fontSize.xl,
-    fontWeight: theme.fontWeight.bold,
+  title: {
+    fontSize: 24,
+    fontWeight: '600',
     color: theme.colors.text,
-    marginTop: theme.spacing.md,
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 24,
   },
-  email: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.textSecondary,
-    marginTop: theme.spacing.xs,
+
+  // Section
+  section: {
+    backgroundColor: 'white',
+    marginHorizontal: 24,
+    marginBottom: 20,
+    padding: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
-  phone: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.textSecondary,
-    marginTop: 2,
-  },
-  editButton: {
+  sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: theme.spacing.md,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.xs,
-    borderRadius: theme.borderRadius.full,
+    gap: 12,
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: theme.colors.text,
+  },
+
+  // Form
+  formGroup: {
+    marginBottom: 16,
+  },
+  formRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  label: {
+    fontSize: 12,
+    color: theme.colors.text,
+    marginBottom: 6,
+    fontWeight: '500',
+  },
+  input: {
     borderWidth: 1,
-    borderColor: theme.colors.primary,
+    borderColor: theme.colors.border,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: theme.colors.text,
   },
-  editButtonText: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.primary,
-    marginLeft: 4,
-    fontWeight: theme.fontWeight.medium,
+  disabledInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: theme.colors.muted,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
   },
-  menuSection: {
-    backgroundColor: theme.colors.surface,
-    marginTop: theme.spacing.sm,
+  disabledInputText: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
   },
-  logoutSection: {
-    backgroundColor: theme.colors.surface,
-    padding: theme.spacing.md,
-    marginTop: theme.spacing.sm,
+
+  // Button
+  buttonContainer: {
+    paddingHorizontal: 24,
+    marginTop: 8,
   },
-  logoutButton: {
+  saveButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: theme.spacing.md,
-    borderRadius: theme.borderRadius.md,
-    backgroundColor: theme.colors.red[500] + '10',
+    gap: 8,
+    backgroundColor: theme.colors.primary,
+    paddingVertical: 14,
+    borderRadius: 24,
   },
-  logoutText: {
-    fontSize: theme.fontSize.md,
-    color: theme.colors.red[500],
-    fontWeight: theme.fontWeight.semibold,
-    marginLeft: theme.spacing.sm,
+  saveButtonDisabled: {
+    opacity: 0.6,
   },
-  input: {
-    marginBottom: theme.spacing.sm,
+  saveButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: 'white',
   },
 });
+
+export default ProfileScreen;

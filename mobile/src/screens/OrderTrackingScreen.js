@@ -8,8 +8,9 @@ import {
   Alert,
 } from 'react-native';
 import { ActivityIndicator, Button, Portal, Dialog, TextInput } from 'react-native-paper';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { io } from 'socket.io-client';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api';
 import { theme } from '../utils/theme';
 import { BACKEND_URL, ORDER_STATUS, ORDER_STATUS_LABELS } from '../utils/constants';
@@ -34,10 +35,12 @@ export default function OrderTrackingScreen({ route, navigation }) {
     };
   }, [orderId]);
 
-  const setupWebSocket = () => {
+  const setupWebSocket = async () => {
+    const accessToken = await AsyncStorage.getItem('accessToken');
     const newSocket = io(BACKEND_URL, {
       path: '/api/socket.io',
       transports: ['websocket', 'polling'],
+      auth: { token: accessToken },
     });
 
     newSocket.on('connect', () => {

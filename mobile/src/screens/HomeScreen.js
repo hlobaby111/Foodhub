@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,18 +6,22 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  TextInput as RNTextInput,
+  TextInput,
   RefreshControl,
   Dimensions,
+  FlatList,
+  ActivityIndicator,
 } from 'react-native';
-import { Searchbar, Chip, FAB, Portal, Modal, Button, ActivityIndicator } from 'react-native-paper';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { useCart } from '../contexts/CartContext';
 import api from '../services/api';
 import { theme } from '../utils/theme';
+import LocationBottomSheet from '../components/LocationBottomSheet';
 
 const { width } = Dimensions.get('window');
 
+// Restaurant Card Component - Matching Web Design
 const RestaurantCard = ({ restaurant, onPress }) => {
   const [photoIndex, setPhotoIndex] = useState(0);
   const photos = restaurant.photos?.length > 0
@@ -33,18 +37,26 @@ const RestaurantCard = ({ restaurant, onPress }) => {
   }, [photos.length]);
 
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
+    <TouchableOpacity
+      style={styles.restaurantCard}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      {/* Photo Carousel */}
       <View style={styles.cardImageContainer}>
         {photos.map((url, i) => (
           <Image
             key={i}
             source={{ uri: url }}
+            resizeMode="cover"
             style={[
               styles.cardImage,
               { opacity: i === photoIndex ? 1 : 0 },
             ]}
           />
         ))}
+
+        {/* Photo Indicators */}
         {photos.length > 1 && (
           <View style={styles.photoIndicators}>
             {photos.map((_, i) => (
@@ -58,59 +70,58 @@ const RestaurantCard = ({ restaurant, onPress }) => {
             ))}
           </View>
         )}
+
+        {/* Delivery Time Badge */}
         {restaurant.deliveryTime && (
           <View style={styles.deliveryBadge}>
-            <Icon name="clock-outline" size={12} color={theme.colors.text} />
+            <Icon name="clock-outline" size={11} color={theme.colors.text} />
             <Text style={styles.deliveryText}>{restaurant.deliveryTime}</Text>
           </View>
         )}
       </View>
 
+      {/* Card Content */}
       <View style={styles.cardContent}>
         <View style={styles.cardHeader}>
           <Text style={styles.cardTitle} numberOfLines={1}>
             {restaurant.name}
           </Text>
-          <View style={styles.rating}>
-            <Icon name="star" size={14} color={theme.colors.green[600]} />
+          <View style={styles.ratingBadge}>
+            <Icon name="star" size={12} color={theme.colors.green[600]} />
             <Text style={styles.ratingText}>
               {restaurant.rating?.toFixed(1) || '0.0'}
             </Text>
           </View>
         </View>
 
+        {/* Delivery Estimate */}
         <Text style={styles.prepTime}>
           {restaurant.avgPrepTime || 25}-{(restaurant.avgPrepTime || 25) + 15} min
         </Text>
 
-        <View style={styles.divider} />
+        {/* Dotted Separator */}
+        <View style={styles.dottedSeparator} />
 
-        <View style={styles.cardFooter}>
-          <View style={styles.vegBadge}>
-            <View
-              style={[
-                styles.vegIcon,
-                { borderColor: restaurant.isVeg ? theme.colors.green[600] : theme.colors.red[500] },
-              ]}
-            >
-              <View
-                style={[
-                  styles.vegDot,
-                  { backgroundColor: restaurant.isVeg ? theme.colors.green[600] : theme.colors.red[500] },
-                ]}
-              />
+        {/* Veg/Non-veg + Cuisines */}
+        <View style={styles.metaRow}>
+          {restaurant.isVeg ? (
+            <View style={styles.vegBadge}>
+              <View style={styles.vegIconBorder}>
+                <View style={styles.vegIconDot} />
+              </View>
+              <Text style={styles.vegText}>Pure Veg</Text>
             </View>
-            <Text
-              style={[
-                styles.vegText,
-                { color: restaurant.isVeg ? theme.colors.green[600] : theme.colors.red[500] },
-              ]}
-            >
-              {restaurant.isVeg ? 'Pure Veg' : 'Non-Veg'}
-            </Text>
-          </View>
-          <Text style={styles.cuisine} numberOfLines={1}>
-            | {restaurant.cuisineType?.slice(0, 2).join(', ')}
+          ) : (
+            <View style={styles.nonVegBadge}>
+              <View style={styles.nonVegIconBorder}>
+                <View style={styles.nonVegIconDot} />
+              </View>
+              <Text style={styles.nonVegText}>Non-Veg</Text>
+            </View>
+          )}
+          <Text style={styles.separator}>|</Text>
+          <Text style={styles.cuisineText} numberOfLines={1}>
+            {restaurant.cuisineType?.slice(0, 2).join(', ')}
           </Text>
         </View>
       </View>
@@ -118,26 +129,29 @@ const RestaurantCard = ({ restaurant, onPress }) => {
   );
 };
 
-export default function HomeScreen({ navigation }) {
-  const { cartCount, cartTotal, restaurant: cartRestaurant } = useCart();
+const HomeScreen = () => {
+  const navigation = useNavigation();
+  const { cartCount, cartTotal, cartRestaurant, clearCart } = useCart();
+
   const [restaurants, setRestaurants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
   const [searchResults, setSearchResults] = useState(null);
   const [locationFilter, setLocationFilter] = useState('');
-  const [userLocation, setUserLocation] = useState('Mumbai, Maharashtra');
-  const [showLocationModal, setShowLocationModal] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ total: 0, pages: 1 });
   const [banners, setBanners] = useState([]);
   const [currentBanner, setCurrentBanner] = useState(0);
-  const searchTimeout = useRef(null);
+  const [userLocation, setUserLocation] = useState('Mumbai, Maharashtra');
+  const [showLocationSheet, setShowLocationSheet] = useState(false);
 
-  const locations = ['Bandra, Mumbai', 'Andheri, Mumbai', 'Juhu, Mumbai', 'Colaba, Mumbai'];
+  const searchTimeout = useRef(null);
 
   useEffect(() => {
     fetchRestaurants();
     fetchBanners();
-  }, [locationFilter]);
+  }, [page, locationFilter]);
 
   useEffect(() => {
     if (banners.length > 1) {
@@ -151,13 +165,13 @@ export default function HomeScreen({ navigation }) {
   const fetchRestaurants = async () => {
     try {
       setLoading(true);
-      const params = { limit: 20 };
+      const params = { page, limit: 12 };
       if (locationFilter) params.location = locationFilter;
-      
       const response = await api.get('/api/restaurants', { params });
-      setRestaurants(response.data.restaurants || []);
+      setRestaurants(response.data.restaurants);
+      setPagination(response.data.pagination);
     } catch (error) {
-      console.error('Error fetching restaurants:', error);
+      console.error(error);
     } finally {
       setLoading(false);
     }
@@ -167,358 +181,526 @@ export default function HomeScreen({ navigation }) {
     try {
       const response = await api.get('/api/banners');
       setBanners(response.data.banners || []);
-    } catch (error) {
-      console.error('Error fetching banners:', error);
+    } catch (e) {
+      console.error(e);
     }
   };
 
-  const handleRefresh = async () => {
+  const onRefresh = async () => {
     setRefreshing(true);
     await fetchRestaurants();
     await fetchBanners();
     setRefreshing(false);
   };
 
-  const handleSearch = (value) => {
+  const handleSearchChange = useCallback((value) => {
     setSearch(value);
     if (searchTimeout.current) clearTimeout(searchTimeout.current);
-    
     if (!value.trim()) {
       setSearchResults(null);
       return;
     }
-
     searchTimeout.current = setTimeout(async () => {
       try {
         const response = await api.get('/api/search', { params: { q: value } });
         setSearchResults(response.data);
-      } catch (error) {
-        console.error('Search error:', error);
+      } catch (e) {
         setSearchResults(null);
       }
     }, 500);
+  }, []);
+
+  const handleLocationSelect = (location) => {
+    const label = location.city ? `${location.address}, ${location.city}` : location.address;
+    if (label) {
+      setUserLocation(label);
+    }
+    setShowLocationSheet(false);
   };
 
-  const handleRestaurantPress = (restaurant) => {
-    setSearchResults(null);
-    setSearch('');
-    navigation.navigate('RestaurantDetail', { restaurantId: restaurant._id });
-  };
+  const locations = ['Bandra, Mumbai', 'Andheri, Mumbai', 'Juhu, Mumbai', 'Colaba, Mumbai'];
 
   return (
     <View style={styles.container}>
-      {/* Location Bar */}
-      <View style={styles.locationBar}>
-        <TouchableOpacity
-          style={styles.locationButton}
-          onPress={() => setShowLocationModal(true)}
-        >
-          <Icon name="navigation-variant" size={20} color={theme.colors.primary} />
-          <View style={styles.locationTextContainer}>
-            <Text style={styles.locationLabel}>Deliver to</Text>
-            <Text style={styles.locationText} numberOfLines={1}>
-              {userLocation}
-            </Text>
-          </View>
-          <Icon name="chevron-right" size={20} color={theme.colors.textSecondary} />
-        </TouchableOpacity>
-      </View>
-
       <ScrollView
         style={styles.scrollView}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {/* Search */}
-        <View style={styles.searchContainer}>
-          <Searchbar
-            placeholder="Search for restaurant, cuisine or a dish"
-            onChangeText={handleSearch}
-            value={search}
-            style={styles.searchBar}
-            iconColor={theme.colors.textSecondary}
-          />
+        {/* Location Bar */}
+        <View style={styles.locationBar}>
+          <TouchableOpacity
+            style={styles.locationButton}
+            onPress={() => setShowLocationSheet(true)}
+          >
+            <Icon name="navigation" size={20} color={theme.colors.primary} />
+            <View style={styles.locationTextContainer}>
+              <Text style={styles.locationLabel}>Deliver to</Text>
+              <Text style={styles.locationValue} numberOfLines={1}>
+                {userLocation}
+              </Text>
+            </View>
+            <Icon name="chevron-right" size={16} color={theme.colors.textSecondary} />
+          </TouchableOpacity>
         </View>
 
-        {/* Search Results Dropdown */}
-        {searchResults && (
-          <View style={styles.searchResultsContainer}>
-            {searchResults.restaurants?.length > 0 && (
-              <View style={styles.searchSection}>
-                <Text style={styles.searchSectionTitle}>RESTAURANTS</Text>
-                {searchResults.restaurants.map((r) => (
-                  <TouchableOpacity
-                    key={r._id}
-                    style={styles.searchResultItem}
-                    onPress={() => handleRestaurantPress(r)}
-                  >
-                    <Image
-                      source={{ uri: r.photos?.[0]?.url || r.coverImage?.url || 'https://images.unsplash.com/photo-1767418238663-d79db1fb7f78?w=100&h=100&fit=crop' }}
-                      style={styles.searchResultImage}
-                    />
-                    <View style={styles.searchResultText}>
-                      <Text style={styles.searchResultName}>{r.name}</Text>
-                      <Text style={styles.searchResultCuisine}>
-                        {r.cuisineType?.join(', ')}
-                      </Text>
-                    </View>
-                    <View style={styles.searchResultRating}>
-                      <Icon name="star" size={12} color={theme.colors.green[600]} />
-                      <Text style={styles.searchResultRatingText}>
-                        {r.rating?.toFixed(1)}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-            {(!searchResults.restaurants?.length && !searchResults.dishMatches?.length) && (
-              <Text style={styles.noResults}>No results found</Text>
+        {/* Search Bar */}
+        <View style={styles.searchContainer}>
+          <View style={styles.searchInputWrapper}>
+            <Icon
+              name="magnify"
+              size={20}
+              color={theme.colors.textSecondary}
+              style={styles.searchIcon}
+            />
+            <TextInput
+              style={styles.searchInput}
+              value={search}
+              onChangeText={handleSearchChange}
+              placeholder="Search for restaurant, cuisine or a dish"
+              placeholderTextColor={theme.colors.textSecondary}
+            />
+            {search && (
+              <TouchableOpacity
+                onPress={() => {
+                  setSearch('');
+                  setSearchResults(null);
+                }}
+                style={styles.clearButton}
+              >
+                <Icon name="close" size={16} color={theme.colors.textSecondary} />
+              </TouchableOpacity>
             )}
           </View>
-        )}
+
+          {/* Search Results Dropdown */}
+          {searchResults && (
+            <View style={styles.searchResultsContainer}>
+              {searchResults.restaurants?.length > 0 && (
+                <View style={styles.searchSection}>
+                  <Text style={styles.searchSectionTitle}>RESTAURANTS</Text>
+                  {searchResults.restaurants.map((r) => (
+                    <TouchableOpacity
+                      key={r._id}
+                      style={styles.searchResultItem}
+                      onPress={() => {
+                        setSearchResults(null);
+                        setSearch('');
+                        navigation.navigate('RestaurantDetail', { id: r._id });
+                      }}
+                    >
+                      <Image
+                        source={{
+                          uri: r.photos?.[0]?.url || r.coverImage?.url || 'https://images.unsplash.com/photo-1767418238663-d79db1fb7f78?w=100&h=100&fit=crop'
+                        }}
+                        style={styles.searchResultImage}
+                      />
+                      <View style={styles.searchResultText}>
+                        <Text style={styles.searchResultName} numberOfLines={1}>
+                          {r.name}
+                        </Text>
+                        <Text style={styles.searchResultCuisine} numberOfLines={1}>
+                          {r.cuisineType?.join(', ')}
+                        </Text>
+                      </View>
+                      <View style={styles.searchResultRating}>
+                        <Icon name="star" size={12} color={theme.colors.green[700]} />
+                        <Text style={styles.searchResultRatingText}>
+                          {r.rating?.toFixed(1)}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+              {searchResults.dishMatches?.length > 0 && (
+                <View style={[styles.searchSection, styles.searchSectionBorder]}>
+                  <Text style={styles.searchSectionTitle}>DISHES</Text>
+                  {searchResults.dishMatches.map((r, i) => (
+                    <TouchableOpacity
+                      key={i}
+                      style={styles.searchResultItem}
+                      onPress={() => {
+                        setSearchResults(null);
+                        setSearch('');
+                        navigation.navigate('RestaurantDetail', { id: r._id });
+                      }}
+                    >
+                      <View style={styles.searchResultText}>
+                        <Text style={styles.searchResultName}>{r.matchedDish}</Text>
+                        <Text style={styles.searchResultCuisine}>{r.name}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+              {(!searchResults.restaurants?.length && !searchResults.dishMatches?.length) && (
+                <View style={styles.noResults}>
+                  <Text style={styles.noResultsText}>No results found</Text>
+                </View>
+              )}
+            </View>
+          )}
+        </View>
 
         {/* Banner Carousel */}
         {banners.length > 0 && (
           <View style={styles.bannerContainer}>
-            {banners.map((banner, i) => (
-              <View
-                key={banner._id}
-                style={[
-                  styles.banner,
-                  { opacity: i === currentBanner ? 1 : 0 },
-                ]}
-              >
-                <Image source={{ uri: banner.imageUrl }} style={styles.bannerImage} />
-                <View style={styles.bannerOverlay}>
-                  <Text style={styles.bannerTitle}>{banner.title}</Text>
-                  <Text style={styles.bannerSubtitle}>{banner.subtitle}</Text>
-                </View>
-              </View>
-            ))}
-            <View style={styles.bannerIndicators}>
-              {banners.map((_, i) => (
+            <View style={styles.bannerWrapper}>
+              {banners.map((banner, i) => (
                 <View
-                  key={i}
+                  key={banner._id}
                   style={[
-                    styles.bannerIndicator,
-                    i === currentBanner && styles.activeBannerIndicator,
+                    styles.bannerSlide,
+                    { opacity: i === currentBanner ? 1 : 0 },
                   ]}
-                />
+                >
+                  <Image
+                    source={{ uri: banner.imageUrl }}
+                    resizeMode="cover"
+                    style={styles.bannerImage}
+                  />
+                  <View style={styles.bannerOverlay} />
+                  <View style={styles.bannerContent}>
+                    <Text style={styles.bannerTitle}>{banner.title}</Text>
+                    <Text style={styles.bannerSubtitle}>{banner.subtitle}</Text>
+                  </View>
+                </View>
               ))}
+              <View style={styles.bannerIndicators}>
+                {banners.map((_, i) => (
+                  <TouchableOpacity
+                    key={i}
+                    onPress={() => setCurrentBanner(i)}
+                    style={[
+                      styles.bannerIndicator,
+                      i === currentBanner && styles.bannerIndicatorActive,
+                    ]}
+                  />
+                ))}
+              </View>
             </View>
           </View>
         )}
 
         {/* Filter Chips */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.filterContainer}
-          contentContainerStyle={styles.filterContent}
-        >
-          <Chip
-            selected={!locationFilter}
-            onPress={() => setLocationFilter('')}
-            style={styles.filterChip}
-            selectedColor={theme.colors.surface}
-            mode="flat"
-          >
-            All
-          </Chip>
-          {locations.map((loc) => (
-            <Chip
-              key={loc}
-              selected={locationFilter === loc}
-              onPress={() => setLocationFilter(loc)}
-              style={styles.filterChip}
-              selectedColor={theme.colors.surface}
-              mode="flat"
-            >
-              {loc.split(',')[0]}
-            </Chip>
-          ))}
-        </ScrollView>
-
-        {/* Restaurants Section */}
-        <View style={styles.restaurantsHeader}>
-          <Text style={styles.restaurantsTitle}>
-            {locationFilter ? `In ${locationFilter.split(',')[0]}` : 'All Restaurants'}
-          </Text>
-        </View>
-
-        {loading ? (
-          <ActivityIndicator size="large" color={theme.colors.primary} style={styles.loader} />
-        ) : restaurants.length === 0 ? (
-          <Text style={styles.noRestaurants}>No restaurants found</Text>
-        ) : (
-          <View style={styles.restaurantGrid}>
-            {restaurants.map((restaurant) => (
-              <RestaurantCard
-                key={restaurant._id}
-                restaurant={restaurant}
-                onPress={() => handleRestaurantPress(restaurant)}
-              />
-            ))}
-          </View>
-        )}
-
-        <View style={{ height: 100 }} />
-      </ScrollView>
-
-      {/* Cart FAB */}
-      {cartCount > 0 && (
-        <FAB
-          icon="cart"
-          label={`₹${cartTotal.toFixed(0)} | ${cartCount} items`}
-          style={styles.cartFab}
-          onPress={() => navigation.navigate('Cart')}
-          color={theme.colors.surface}
-          customSize={56}
-        />
-      )}
-
-      {/* Location Modal */}
-      <Portal>
-        <Modal
-          visible={showLocationModal}
-          onDismiss={() => setShowLocationModal(false)}
-          contentContainerStyle={styles.modalContainer}
-        >
-          <Text style={styles.modalTitle}>Set delivery location</Text>
-          {['Mumbai, Maharashtra', 'Bandra West, Mumbai', 'Andheri East, Mumbai', 'Powai, Mumbai'].map((loc) => (
+        <View style={styles.filterContainer}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <TouchableOpacity
-              key={loc}
-              style={styles.locationOption}
+              style={[
+                styles.filterChip,
+                !locationFilter && styles.filterChipActive,
+              ]}
               onPress={() => {
-                setUserLocation(loc);
-                setShowLocationModal(false);
+                setLocationFilter('');
+                setPage(1);
               }}
             >
-              <Icon name="map-marker" size={20} color={theme.colors.textSecondary} />
-              <Text style={styles.locationOptionText}>{loc}</Text>
-              {userLocation === loc && (
-                <Icon name="check" size={20} color={theme.colors.primary} />
-              )}
+              <Text
+                style={[
+                  styles.filterChipText,
+                  !locationFilter && styles.filterChipTextActive,
+                ]}
+              >
+                All
+              </Text>
             </TouchableOpacity>
-          ))}
-          <Button
-            mode="contained"
-            onPress={() => setShowLocationModal(false)}
-            style={styles.modalButton}
-            buttonColor={theme.colors.primary}
-          >
-            Confirm
-          </Button>
-        </Modal>
-      </Portal>
+            {locations.map((loc) => (
+              <TouchableOpacity
+                key={loc}
+                style={[
+                  styles.filterChip,
+                  locationFilter === loc && styles.filterChipActive,
+                ]}
+                onPress={() => {
+                  setLocationFilter(loc);
+                  setPage(1);
+                }}
+              >
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    locationFilter === loc && styles.filterChipTextActive,
+                  ]}
+                >
+                  {loc.split(',')[0]}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Restaurant Grid */}
+        <View style={styles.restaurantSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>
+              {locationFilter ? `In ${locationFilter.split(',')[0]}` : 'All Restaurants'}
+            </Text>
+            <Text style={styles.sectionSubtitle}> {pagination.total} places</Text>
+          </View>
+
+          {loading ? (
+            <View style={styles.gridContainer}>
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <View key={i} style={styles.skeletonCard} />
+              ))}
+            </View>
+          ) : restaurants.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyText}>No restaurants found</Text>
+            </View>
+          ) : (
+            <>
+              <View style={styles.gridContainer}>
+                {restaurants.map((restaurant) => (
+                  <RestaurantCard
+                    key={restaurant._id}
+                    restaurant={restaurant}
+                    onPress={() =>
+                      navigation.navigate('RestaurantDetail', { id: restaurant._id })
+                    }
+                  />
+                ))}
+              </View>
+
+              {/* Pagination */}
+              {pagination.pages > 1 && (
+                <View style={styles.pagination}>
+                  <TouchableOpacity
+                    style={[styles.paginationButton, page <= 1 && styles.paginationButtonDisabled]}
+                    disabled={page <= 1}
+                    onPress={() => setPage((p) => p - 1)}
+                  >
+                    <Text style={styles.paginationButtonText}>Prev</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.paginationText}>
+                    {page}/{pagination.pages}
+                  </Text>
+                  <TouchableOpacity
+                    style={[
+                      styles.paginationButton,
+                      page >= pagination.pages && styles.paginationButtonDisabled,
+                    ]}
+                    disabled={page >= pagination.pages}
+                    onPress={() => setPage((p) => p + 1)}
+                  >
+                    <Text style={styles.paginationButtonText}>Next</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </>
+          )}
+        </View>
+
+        {/* Footer Spacing */}
+        <View style={{ height: cartCount > 0 ? 140 : 40 }} />
+      </ScrollView>
+
+      {/* Persistent Cart Bar */}
+      {cartCount > 0 && (
+        <View style={styles.cartBarContainer}>
+          <View style={styles.cartBar}>
+            <TouchableOpacity
+              style={styles.cartBarContent}
+              onPress={() => navigation.navigate('Cart')}
+            >
+              <View style={styles.cartIconContainer}>
+                <Icon name="cart" size={20} color="white" />
+              </View>
+              <View style={styles.cartBarTextContainer}>
+                <Text style={styles.cartBarMainText}>
+                  {cartCount} item{cartCount > 1 ? 's' : ''} | INR{cartTotal}
+                </Text>
+                <Text style={styles.cartBarSubText} numberOfLines={1}>
+                  {cartRestaurant?.name}
+                </Text>
+              </View>
+            </TouchableOpacity>
+            <View style={styles.cartBarActions}>
+              <TouchableOpacity
+                style={styles.viewCartButton}
+                onPress={() => navigation.navigate('Cart')}
+              >
+                <Text style={styles.viewCartText}>View Cart</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.clearCartButton} onPress={clearCart}>
+                <Icon name="close" size={16} color="white" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
+      <LocationBottomSheet
+        visible={showLocationSheet}
+        onClose={() => setShowLocationSheet(false)}
+        onLocationSelect={handleLocationSelect}
+      />
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
   },
+  scrollView: {
+    flex: 1,
+  },
+
+  // Location Bar
   locationBar: {
-    backgroundColor: theme.colors.surface,
+    backgroundColor: 'white',
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: 16,
   },
   locationButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: 12,
+    gap: 8,
   },
   locationTextContainer: {
     flex: 1,
-    marginLeft: theme.spacing.sm,
   },
   locationLabel: {
-    fontSize: theme.fontSize.xs,
+    fontSize: 10,
     color: theme.colors.textSecondary,
+    lineHeight: 12,
   },
-  locationText: {
-    fontSize: theme.fontSize.sm,
-    fontWeight: theme.fontWeight.medium,
+  locationValue: {
+    fontSize: 14,
+    fontWeight: '500',
     color: theme.colors.text,
   },
-  scrollView: {
-    flex: 1,
-  },
+
+  // Search
   searchContainer: {
-    paddingHorizontal: theme.spacing.md,
-    paddingTop: theme.spacing.md,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    position: 'relative',
+    zIndex: 1000,
   },
-  searchBar: {
-    backgroundColor: theme.colors.surface,
+  searchInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    paddingHorizontal: 16,
+    height: 56,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
     elevation: 2,
   },
+  searchIcon: {
+    marginRight: 12,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: theme.colors.text,
+  },
+  clearButton: {
+    padding: 4,
+  },
+
+  // Search Results
   searchResultsContainer: {
-    margin: theme.spacing.md,
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.borderRadius.lg,
-    padding: theme.spacing.md,
-    elevation: 4,
+    position: 'absolute',
+    top: 72,
+    left: 16,
+    right: 16,
+    backgroundColor: 'white',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    maxHeight: 400,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+    zIndex: 2000,
   },
   searchSection: {
-    marginBottom: theme.spacing.sm,
+    padding: 12,
+  },
+  searchSectionBorder: {
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
   },
   searchSectionTitle: {
-    fontSize: theme.fontSize.xs,
+    fontSize: 10,
+    fontWeight: '500',
     color: theme.colors.textSecondary,
-    fontWeight: theme.fontWeight.semibold,
-    marginBottom: theme.spacing.sm,
+    marginBottom: 8,
+    letterSpacing: 1,
   },
   searchResultItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: theme.spacing.sm,
+    padding: 10,
+    borderRadius: 12,
+    marginBottom: 4,
   },
   searchResultImage: {
     width: 40,
     height: 40,
-    borderRadius: theme.borderRadius.sm,
+    borderRadius: 8,
+    backgroundColor: theme.colors.muted,
   },
   searchResultText: {
     flex: 1,
-    marginLeft: theme.spacing.sm,
+    marginLeft: 12,
   },
   searchResultName: {
-    fontSize: theme.fontSize.sm,
-    fontWeight: theme.fontWeight.medium,
+    fontSize: 14,
+    fontWeight: '500',
     color: theme.colors.text,
   },
   searchResultCuisine: {
-    fontSize: theme.fontSize.xs,
+    fontSize: 12,
     color: theme.colors.textSecondary,
+    marginTop: 2,
   },
   searchResultRating: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 2,
+    marginLeft: 8,
   },
   searchResultRatingText: {
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.green[600],
-    marginLeft: 2,
+    fontSize: 12,
+    color: theme.colors.green[700],
   },
   noResults: {
-    textAlign: 'center',
-    color: theme.colors.textSecondary,
-    padding: theme.spacing.lg,
+    padding: 24,
+    alignItems: 'center',
   },
+  noResultsText: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+  },
+
+  // Banner
   bannerContainer: {
-    marginHorizontal: theme.spacing.md,
-    marginTop: theme.spacing.md,
-    height: 140,
-    borderRadius: theme.borderRadius.lg,
+    paddingHorizontal: 16,
+    paddingTop: 20,
+  },
+  bannerWrapper: {
+    borderRadius: 16,
     overflow: 'hidden',
+    height: 160,
     position: 'relative',
   },
-  banner: {
+  bannerSlide: {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -531,120 +713,152 @@ const styles = StyleSheet.create({
   },
   bannerOverlay: {
     position: 'absolute',
-    bottom: 0,
+    top: 0,
     left: 0,
     right: 0,
-    padding: theme.spacing.md,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  bannerContent: {
+    position: 'absolute',
+    bottom: 16,
+    left: 16,
+    right: 16,
   },
   bannerTitle: {
-    fontSize: theme.fontSize.lg,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.surface,
+    fontSize: 24,
+    fontWeight: '700',
+    color: 'white',
   },
   bannerSubtitle: {
-    fontSize: theme.fontSize.sm,
+    fontSize: 12,
     color: 'rgba(255,255,255,0.8)',
+    marginTop: 4,
   },
   bannerIndicators: {
     position: 'absolute',
-    bottom: theme.spacing.sm,
-    right: theme.spacing.md,
+    bottom: 12,
+    right: 16,
     flexDirection: 'row',
+    gap: 6,
   },
   bannerIndicator: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: 'rgba(255,255,255,0.5)',
-    marginLeft: 4,
   },
-  activeBannerIndicator: {
-    width: 16,
-    backgroundColor: theme.colors.surface,
+  bannerIndicatorActive: {
+    width: 20,
+    backgroundColor: 'white',
   },
+
+  // Filters
   filterContainer: {
-    marginTop: theme.spacing.md,
-    paddingHorizontal: theme.spacing.md,
-  },
-  filterContent: {
-    paddingRight: theme.spacing.md,
+    paddingTop: 20,
+    paddingLeft: 16,
   },
   filterChip: {
-    marginRight: theme.spacing.sm,
+    backgroundColor: theme.colors.muted,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginRight: 8,
   },
-  restaurantsHeader: {
-    paddingHorizontal: theme.spacing.md,
-    paddingTop: theme.spacing.md,
-    paddingBottom: theme.spacing.sm,
+  filterChipActive: {
+    backgroundColor: theme.colors.primary,
   },
-  restaurantsTitle: {
-    fontSize: theme.fontSize.lg,
-    fontWeight: theme.fontWeight.semibold,
+  filterChipText: {
+    fontSize: 12,
+    color: theme.colors.text,
+    fontWeight: '500',
+  },
+  filterChipTextActive: {
+    color: 'white',
+  },
+
+  // Restaurant Section
+  restaurantSection: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '500',
     color: theme.colors.text,
   },
-  loader: {
-    marginTop: theme.spacing.xl,
-  },
-  noRestaurants: {
-    textAlign: 'center',
+  sectionSubtitle: {
+    fontSize: 12,
     color: theme.colors.textSecondary,
-    marginTop: theme.spacing.xl,
   },
-  restaurantGrid: {
-    paddingHorizontal: theme.spacing.md,
+
+  // Restaurant Card
+  gridContainer: {
+    gap: 16,
   },
-  card: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.borderRadius.lg,
-    marginBottom: theme.spacing.md,
+  restaurantCard: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    marginBottom: 16,
     overflow: 'hidden',
-    elevation: 2,
   },
   cardImageContainer: {
-    height: 180,
+    aspectRatio: 16 / 10,
     position: 'relative',
+    backgroundColor: theme.colors.muted,
   },
   cardImage: {
     position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     width: '100%',
     height: '100%',
   },
   photoIndicators: {
     position: 'absolute',
-    bottom: theme.spacing.sm,
-    right: theme.spacing.sm,
+    bottom: 8,
+    right: 8,
     flexDirection: 'row',
+    gap: 4,
   },
   indicator: {
     width: 6,
     height: 6,
     borderRadius: 3,
     backgroundColor: 'rgba(255,255,255,0.5)',
-    marginLeft: 4,
   },
   activeIndicator: {
     width: 12,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: 'white',
   },
   deliveryBadge: {
     position: 'absolute',
-    bottom: theme.spacing.sm,
-    left: theme.spacing.sm,
+    bottom: 8,
+    left: 8,
     backgroundColor: 'rgba(255,255,255,0.9)',
-    borderRadius: theme.borderRadius.full,
-    paddingHorizontal: theme.spacing.sm,
+    paddingHorizontal: 10,
     paddingVertical: 4,
+    borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
   },
   deliveryText: {
-    fontSize: theme.fontSize.xs,
-    fontWeight: theme.fontWeight.medium,
-    marginLeft: 4,
+    fontSize: 11,
+    fontWeight: '500',
+    color: theme.colors.text,
   },
   cardContent: {
-    padding: theme.spacing.md,
+    padding: 16,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -654,98 +868,291 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     flex: 1,
-    fontSize: theme.fontSize.lg,
-    fontWeight: theme.fontWeight.semibold,
+    fontSize: 16,
+    fontWeight: '600',
     color: theme.colors.text,
   },
-  rating: {
+  ratingBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: theme.colors.green[50],
-    paddingHorizontal: theme.spacing.sm,
+    paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: theme.borderRadius.full,
-    marginLeft: theme.spacing.sm,
+    borderRadius: 12,
+    gap: 2,
+    marginLeft: 8,
   },
   ratingText: {
-    fontSize: theme.fontSize.xs,
-    fontWeight: theme.fontWeight.medium,
-    color: theme.colors.green[600],
-    marginLeft: 2,
+    fontSize: 12,
+    fontWeight: '500',
+    color: theme.colors.green[700],
   },
   prepTime: {
-    fontSize: theme.fontSize.xs,
+    fontSize: 12,
+    fontWeight: '500',
     color: theme.colors.green[600],
-    fontWeight: theme.fontWeight.medium,
-    marginBottom: theme.spacing.sm,
+    marginBottom: 6,
   },
-  divider: {
+  dottedSeparator: {
     height: 1,
-    backgroundColor: theme.colors.border,
-    marginVertical: theme.spacing.sm,
+    borderTopWidth: 1,
+    borderStyle: 'dotted',
+    borderColor: theme.colors.border,
+    marginVertical: 8,
   },
-  cardFooter: {
+  metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
   },
   vegBadge: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
   },
-  vegIcon: {
+  vegIconBorder: {
     width: 14,
     height: 14,
     borderWidth: 2,
+    borderColor: theme.colors.green[600],
     borderRadius: 2,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  vegDot: {
+  vegIconDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
+    backgroundColor: theme.colors.green[600],
   },
   vegText: {
-    fontSize: theme.fontSize.xs,
-    fontWeight: theme.fontWeight.medium,
-    marginLeft: 4,
+    fontSize: 12,
+    fontWeight: '500',
+    color: theme.colors.green[600],
   },
-  cuisine: {
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.textSecondary,
-    marginLeft: theme.spacing.sm,
-    flex: 1,
-  },
-  cartFab: {
-    position: 'absolute',
-    bottom: theme.spacing.lg,
-    right: theme.spacing.md,
-    backgroundColor: theme.colors.primary,
-  },
-  modalContainer: {
-    backgroundColor: theme.colors.surface,
-    margin: theme.spacing.lg,
-    padding: theme.spacing.lg,
-    borderRadius: theme.borderRadius.lg,
-  },
-  modalTitle: {
-    fontSize: theme.fontSize.lg,
-    fontWeight: theme.fontWeight.semibold,
-    marginBottom: theme.spacing.md,
-  },
-  locationOption: {
+  nonVegBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: theme.spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    gap: 4,
   },
-  locationOptionText: {
+  nonVegIconBorder: {
+    width: 14,
+    height: 14,
+    borderWidth: 2,
+    borderColor: theme.colors.red[500],
+    borderRadius: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  nonVegIconDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: theme.colors.red[500],
+  },
+  nonVegText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: theme.colors.red[500],
+  },
+  separator: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+  },
+  cuisineText: {
     flex: 1,
-    marginLeft: theme.spacing.sm,
-    fontSize: theme.fontSize.sm,
+    fontSize: 12,
+    color: theme.colors.textSecondary,
   },
-  modalButton: {
-    marginTop: theme.spacing.md,
+
+  // Skeleton & Empty States
+  skeletonCard: {
+    height: 288,
+    backgroundColor: theme.colors.muted,
+    borderRadius: 16,
+    marginBottom: 16,
+  },
+  emptyState: {
+    paddingVertical: 64,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+  },
+
+  // Pagination
+  pagination: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 24,
+    marginBottom: 16,
+  },
+  paginationButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: 'white',
+  },
+  paginationButtonDisabled: {
+    opacity: 0.4,
+  },
+  paginationButtonText: {
+    fontSize: 12,
+    color: theme.colors.text,
+    fontWeight: '500',
+  },
+  paginationText: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+  },
+
+  // Cart Bar
+  cartBarContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 12,
+  },
+  cartBar: {
+    backgroundColor: theme.colors.primary,
+    borderRadius: 16,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    shadowColor: theme.colors.primary,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 24,
+    elevation: 8,
+  },
+  cartBarContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 12,
+  },
+  cartIconContainer: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 20,
+    padding: 8,
+  },
+  cartBarTextContainer: {
+    flex: 1,
+  },
+  cartBarMainText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'white',
+  },
+  cartBarSubText: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 2,
+  },
+  cartBarActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  viewCartButton: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  viewCartText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: 'white',
+  },
+  clearCartButton: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 16,
+    padding: 6,
+  },
+
+  // Location Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: 16,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: theme.colors.text,
+    marginBottom: 16,
+  },
+  locationList: {
+    marginBottom: 16,
+  },
+  locationItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 8,
+    gap: 8,
+  },
+  locationItemText: {
+    flex: 1,
+    fontSize: 14,
+    color: theme.colors.text,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalCancelButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    alignItems: 'center',
+  },
+  modalCancelText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: theme.colors.text,
+  },
+  modalConfirmButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: theme.colors.primary,
+    alignItems: 'center',
+  },
+  modalConfirmText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: 'white',
   },
 });
+
+export default HomeScreen;

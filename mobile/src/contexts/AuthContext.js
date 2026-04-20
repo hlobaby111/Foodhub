@@ -4,6 +4,16 @@ import api from '../services/api';
 
 const AuthContext = createContext({});
 
+const normalizeAuthPayload = (payload = {}) => {
+  const accessToken = payload.accessToken || payload.token;
+  const refreshToken = payload.refreshToken || null;
+  return {
+    accessToken,
+    refreshToken,
+    user: payload.user || null,
+  };
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -12,12 +22,37 @@ export const AuthProvider = ({ children }) => {
     loadUser();
   }, []);
 
+  const persistSession = async (payload) => {
+    const { accessToken, refreshToken, user: userData } = normalizeAuthPayload(payload);
+
+    if (!accessToken || !userData) {
+      throw new Error('Invalid auth response: missing access token or user data');
+    }
+
+    await AsyncStorage.setItem('accessToken', accessToken);
+    if (refreshToken) {
+      await AsyncStorage.setItem('refreshToken', refreshToken);
+    } else {
+      await AsyncStorage.removeItem('refreshToken');
+    }
+    await AsyncStorage.setItem('user', JSON.stringify(userData));
+    // Cleanup legacy key after migration.
+    await AsyncStorage.removeItem('token');
+    setUser(userData);
+  };
+
   const loadUser = async () => {
     try {
       const accessToken = await AsyncStorage.getItem('accessToken');
+      const legacyToken = await AsyncStorage.getItem('token');
       const userData = await AsyncStorage.getItem('user');
-      
-      if (accessToken && userData) {
+
+      if ((accessToken || legacyToken) && userData) {
+        if (!accessToken && legacyToken) {
+          // Migrate old storage format to the new session contract.
+          await AsyncStorage.setItem('accessToken', legacyToken);
+          await AsyncStorage.removeItem('token');
+        }
         setUser(JSON.parse(userData));
       }
     } catch (error) {
@@ -30,11 +65,7 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       const response = await api.post('/api/auth/login', { email, password });
-      const { token, user: userData } = response.data;
-      
-      await AsyncStorage.setItem('token', token);
-      await AsyncStorage.setItem('user', JSON.stringify(userData));
-      setUser(userData);
+      await persistSession(response.data);
       
       return { success: true };
     } catch (error) {
@@ -54,11 +85,7 @@ export const AuthProvider = ({ children }) => {
         phone,
         role: 'customer',
       });
-      const { token, user: userData } = response.data;
-      
-      await AsyncStorage.setItem('token', token);
-      await AsyncStorage.setItem('user', JSON.stringify(userData));
-      setUser(userData);
+      await persistSession(response.data);
       
       return { success: true };
     } catch (error) {
@@ -71,14 +98,15 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      // Call logout API to blacklist token
-      await api.post('/api/otp-auth/logout');
+      const refreshToken = await AsyncStorage.getItem('refreshToken');
+      // Send refresh token so only this device is logged out
+      await api.post('/api/otp-auth/logout', { refreshToken });
     } catch (error) {
       console.error('Logout API error:', error);
     } finally {
-      // Clear local storage
       await AsyncStorage.removeItem('accessToken');
       await AsyncStorage.removeItem('refreshToken');
+      await AsyncStorage.removeItem('token');
       await AsyncStorage.removeItem('user');
       setUser(null);
     }
@@ -108,6 +136,7 @@ export const AuthProvider = ({ children }) => {
         loading,
         login,
         register,
+        persistSession,
         logout,
         updateProfile,
         isAuthenticated: !!user,

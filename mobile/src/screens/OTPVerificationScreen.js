@@ -8,17 +8,19 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { TextInput, Button, HelperText } from 'react-native-paper';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '../contexts/AuthContext';
 import { theme } from '../utils/theme';
 import api from '../services/api';
 
 export default function OTPVerificationScreen({ route, navigation }) {
+  const { persistSession } = useAuth();
   const { phone, otp: devOTP } = route.params;
   const [otp, setOTP] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [resending, setResending] = useState(false);
-  const [timer, setTimer] = useState(60);
+  const { waitSeconds: initialWait } = route.params || {};
+  const [timer, setTimer] = useState(initialWait ?? 30);
   const inputRefs = useRef([]);
 
   useEffect(() => {
@@ -77,18 +79,16 @@ export default function OTPVerificationScreen({ route, navigation }) {
       });
 
       if (response.data) {
-        const { accessToken, refreshToken, user, isNewUser, needsProfile } = response.data;
+        const { needsProfile } = response.data;
 
-        // Store tokens
-        await AsyncStorage.setItem('accessToken', accessToken);
-        await AsyncStorage.setItem('refreshToken', refreshToken);
-        await AsyncStorage.setItem('user', JSON.stringify(user));
+        if (!needsProfile) {
+          await persistSession(response.data);
+          return;
+        }
 
-        // Navigate based on user status
+        // If profile details are still required, continue in auth flow.
         if (needsProfile) {
-          navigation.replace('CompleteProfile');
-        } else {
-          navigation.replace('Main');
+          navigation.replace('Register');
         }
       }
     } catch (err) {
@@ -107,15 +107,18 @@ export default function OTPVerificationScreen({ route, navigation }) {
       const response = await api.post('/api/otp-auth/send-otp', { phone });
 
       if (response.data) {
-        setTimer(60);
+        // Reset timer — server enforces 30s, default to 30 if not provided
+        setTimer(30);
         setOTP(['', '', '', '', '', '']);
         inputRefs.current[0]?.focus();
-        
-        // Show success message
-        alert('OTP sent successfully!');
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to resend OTP');
+      const data = err.response?.data || {};
+      // Sync timer to actual server remaining time when rate-limited
+      if (err.response?.status === 429 && data.waitSeconds) {
+        setTimer(data.waitSeconds);
+      }
+      setError(data.message || 'Failed to resend OTP');
     } finally {
       setResending(false);
     }

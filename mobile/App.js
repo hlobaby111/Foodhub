@@ -1,24 +1,24 @@
 import React from 'react';
 import { StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { Provider as PaperProvider } from 'react-native-paper';
+import { Provider as PaperProvider, MD3LightTheme } from 'react-native-paper';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { CartProvider } from './src/contexts/CartContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { theme } from './src/utils/theme';
 
+// Extend MD3LightTheme so Paper v5 has all required tokens (e.g. elevation.level3)
 const paperTheme = {
+  ...MD3LightTheme,
   colors: {
+    ...MD3LightTheme.colors,
     primary: theme.colors.primary,
-    accent: theme.colors.secondary,
+    secondary: theme.colors.secondary,
     background: theme.colors.background,
     surface: theme.colors.surface,
-    text: theme.colors.text,
     error: theme.colors.error,
-    disabled: theme.colors.textSecondary,
-    placeholder: theme.colors.textSecondary,
-    backdrop: 'rgba(0, 0, 0, 0.5)',
+    onSurface: theme.colors.text,
   },
 };
 

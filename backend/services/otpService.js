@@ -1,4 +1,5 @@
 const axios = require('axios');
+const crypto = require('crypto');
 const redis = require('../config/redis');
 
 const AUTHKEY_API_KEY = process.env.AUTHKEY_API_KEY || 'your-authkey-api-key';
@@ -9,6 +10,11 @@ class OTPService {
   // Generate 6-digit OTP
   generateOTP() {
     return Math.floor(100000 + Math.random() * 900000).toString();
+  }
+
+  // Hash OTP before storing — never keep plain text in Redis
+  hashOTP(otp) {
+    return crypto.createHash('sha256').update(otp).digest('hex');
   }
 
   // Send OTP via AuthKey SMS
@@ -47,26 +53,26 @@ class OTPService {
     }
   }
 
-  // Store OTP in Redis with expiry
+  // Store hashed OTP in Redis with expiry
   async storeOTP(phoneNumber, otp) {
     const key = `otp_${phoneNumber}`;
-    await redis.setex(key, OTP_EXPIRY, otp);
+    await redis.setex(key, OTP_EXPIRY, this.hashOTP(otp));
   }
 
-  // Verify OTP
+  // Verify OTP by comparing hashes
   async verifyOTP(phoneNumber, otp) {
     const key = `otp_${phoneNumber}`;
-    const storedOTP = await redis.get(key);
+    const storedHash = await redis.get(key);
 
-    if (!storedOTP) {
+    if (!storedHash) {
       return { valid: false, message: 'OTP expired or not found' };
     }
 
-    if (storedOTP !== otp) {
+    if (storedHash !== this.hashOTP(otp)) {
       return { valid: false, message: 'Invalid OTP' };
     }
 
-    // OTP is valid, delete it
+    // OTP is valid, delete it immediately (single-use)
     await redis.del(key);
     return { valid: true, message: 'OTP verified successfully' };
   }
@@ -77,11 +83,16 @@ class OTPService {
     const lastSent = await redis.get(key);
 
     if (lastSent) {
-      return { allowed: false, message: 'Please wait before requesting another OTP' };
+      const waitSeconds = Math.max(await redis.ttl(key), 0);
+      return {
+        allowed: false,
+        waitSeconds,
+        message: `Please wait ${waitSeconds} seconds before requesting another OTP`,
+      };
     }
 
-    // Set rate limit for 60 seconds
-    await redis.setex(key, 60, Date.now().toString());
+    // Set rate limit for 30 seconds
+    await redis.setex(key, 30, Date.now().toString());
     return { allowed: true };
   }
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Animated, Dimensions, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { theme } from '../utils/theme';
 
@@ -8,6 +8,7 @@ const { width, height } = Dimensions.get('window');
 export default function SplashScreen({ onFinish }) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.3)).current;
+  const useNativeDriver = Platform.OS !== 'web';
 
   useEffect(() => {
     // Animate logo appearance
@@ -15,13 +16,13 @@ export default function SplashScreen({ onFinish }) {
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 1000,
-        useNativeDriver: true,
+        useNativeDriver,
       }),
       Animated.spring(scaleAnim, {
         toValue: 1,
         tension: 10,
         friction: 2,
-        useNativeDriver: true,
+        useNativeDriver,
       }),
     ]).start();
 

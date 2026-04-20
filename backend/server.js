@@ -3,7 +3,9 @@ const express = require('express');
 const http = require('http');
 const cors = require('cors');
 const helmet = require('helmet');
+const cookieParser = require('cookie-parser');
 const { Server } = require('socket.io');
+const tokenService = require('./services/tokenService');
 const connectDB = require('./config/database');
 const redis = require('./config/redis');
 const { initStorage } = require('./config/storage');
@@ -25,6 +27,18 @@ const deliveryRoutes = require('./routes/deliveryRoutes');
 const app = express();
 const server = http.createServer(app);
 
+// --- HTTPS enforcement (production only) ---
+// Behind a reverse-proxy/load-balancer the plain HTTP request carries
+// X-Forwarded-Proto.  Redirect to HTTPS before any other middleware runs.
+if (process.env.NODE_ENV === 'production') {
+  app.use((req, res, next) => {
+    if (req.headers['x-forwarded-proto'] !== 'https') {
+      return res.redirect(301, `https://${req.headers.host}${req.url}`);
+    }
+    next();
+  });
+}
+
 // WebSocket setup
 const io = new Server(server, {
   cors: { origin: '*', methods: ['GET', 'POST'] },
@@ -32,6 +46,22 @@ const io = new Server(server, {
 });
 
 app.set('io', io);
+
+// Authenticate every WebSocket connection with a valid access token
+io.use(async (socket, next) => {
+  try {
+    const token =
+      socket.handshake.auth?.token ||
+      socket.handshake.headers?.authorization?.replace('Bearer ', '');
+    if (!token) return next(new Error('Authentication required'));
+    const decoded = await tokenService.verifyAccessToken(token);
+    socket.userId = decoded.userId;
+    socket.userRole = decoded.role;
+    next();
+  } catch {
+    next(new Error('Invalid or expired token'));
+  }
+});
 
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
@@ -53,13 +83,28 @@ io.on('connection', (socket) => {
 // Security middleware
 app.use(helmet({
   contentSecurityPolicy: false, // Disable CSP for API
-  crossOriginEmbedderPolicy: false
+  crossOriginEmbedderPolicy: false,
+  // HSTS: tell browsers to only use HTTPS for the next year (production only)
+  hsts: process.env.NODE_ENV === 'production'
+    ? { maxAge: 31536000, includeSubDomains: true, preload: true }
+    : false,
 }));
 
+// Parse cookies (required for httpOnly cookie auth on web)
+app.use(cookieParser());
+
 // CORS configuration
-app.use(cors({ 
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
-  credentials: true 
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',').map(o => o.trim()).filter(Boolean);
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, Postman)
+    if (!origin) return callback(null, true);
+    // If no specific origins configured, allow all
+    if (!allowedOrigins || allowedOrigins.includes('*')) return callback(null, origin);
+    if (allowedOrigins.includes(origin)) return callback(null, origin);
+    callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true
 }));
 
 // Body parsers

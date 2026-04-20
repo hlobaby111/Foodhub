@@ -1,15 +1,8 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { ShoppingCart, User, LogOut, Store, Shield, Truck } from 'lucide-react';
+import { ShoppingCart, User, Store, Shield, Truck } from 'lucide-react';
 import { Button } from './ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from './ui/dropdown-menu';
 
 const Navigation = ({ cartItemsCount = 0 }) => {
   const { user, logout } = useAuth();
@@ -18,7 +11,30 @@ const Navigation = ({ cartItemsCount = 0 }) => {
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate('/auth/phone');
+  };
+
+  const handleUserMenuClick = () => {
+    if (!user) return;
+
+    if (user.role === 'customer') {
+      navigate('/account');
+      return;
+    }
+
+    if (user.role === 'restaurant_owner') {
+      navigate('/owner/dashboard');
+      return;
+    }
+
+    if (user.role === 'admin') {
+      navigate('/admin/dashboard');
+      return;
+    }
+
+    if (user.role === 'delivery_partner') {
+      navigate('/delivery/dashboard');
+    }
   };
 
   const isActive = (path) => location.pathname === path;
@@ -54,76 +70,23 @@ const Navigation = ({ cartItemsCount = 0 }) => {
                   </Button>
                 )}
 
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" data-testid="user-menu-trigger">
-                      {user.role === 'admin' ? <Shield className="w-5 h-5" /> : <User className="w-5 h-5" />}
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    <div className="px-2 py-1.5">
-                      <p className="text-sm font-medium">{user.name}</p>
-                      <p className="text-xs text-muted-foreground">{user.email}</p>
-                    </div>
-                    <DropdownMenuSeparator />
-                    
-                    {user.role === 'customer' && (
-                      <>
-                        <DropdownMenuItem onClick={() => navigate('/profile')} data-testid="profile-menu-item">
-                          <User className="w-4 h-4 mr-2" />
-                          Profile
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => navigate('/orders')} data-testid="orders-menu-item">
-                          <ShoppingCart className="w-4 h-4 mr-2" />
-                          My Orders
-                        </DropdownMenuItem>
-                      </>
-                    )}
-                    
-                    {user.role === 'restaurant_owner' && (
-                      <DropdownMenuItem onClick={() => navigate('/owner/dashboard')} data-testid="dashboard-menu-item">
-                        <Store className="w-4 h-4 mr-2" />
-                        Dashboard
-                      </DropdownMenuItem>
-                    )}
-                    
-                    {user.role === 'admin' && (
-                      <DropdownMenuItem onClick={() => navigate('/admin/dashboard')} data-testid="admin-dashboard-menu-item">
-                        <Shield className="w-4 h-4 mr-2" />
-                        Admin Panel
-                      </DropdownMenuItem>
-                    )}
-                    
-                    {user.role === 'delivery_partner' && (
-                      <DropdownMenuItem onClick={() => navigate('/delivery/dashboard')} data-testid="delivery-dashboard-menu-item">
-                        <Truck className="w-4 h-4 mr-2" />
-                        Deliveries
-                      </DropdownMenuItem>
-                    )}
-                    
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleLogout} data-testid="logout-menu-item">
-                      <LogOut className="w-4 h-4 mr-2" />
-                      Logout
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  data-testid="user-menu-trigger"
+                  onClick={handleUserMenuClick}
+                >
+                  {user.role === 'admin' ? <Shield className="w-5 h-5" /> : <User className="w-5 h-5" />}
+                </Button>
               </>
             ) : (
               <div className="flex items-center space-x-3">
                 <Button 
-                  variant="ghost" 
-                  onClick={() => navigate('/login')}
+                  className="rounded-full"
+                  onClick={() => navigate('/auth/phone')}
                   data-testid="login-button"
                 >
-                  Login
-                </Button>
-                <Button 
-                  className="rounded-full" 
-                  onClick={() => navigate('/register')}
-                  data-testid="register-button"
-                >
-                  Sign Up
+                  Get Started
                 </Button>
               </div>
             )}

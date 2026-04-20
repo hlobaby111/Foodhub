@@ -11,7 +11,10 @@ class OTPAuthController {
       // Check rate limit
       const rateCheck = await otpService.checkRateLimit(phone);
       if (!rateCheck.allowed) {
-        return res.status(429).json({ message: rateCheck.message });
+        return res.status(429).json({
+          message: rateCheck.message,
+          waitSeconds: rateCheck.waitSeconds,
+        });
       }
 
       // Generate OTP
@@ -140,12 +143,13 @@ class OTPAuthController {
   async logout(req, res) {
     try {
       const token = req.headers.authorization?.replace('Bearer ', '');
-      
-      // Blacklist access token
+      const { refreshToken } = req.body;
+
+      // Blacklist the current access token for its remaining lifetime
       await tokenService.blacklistToken(token, 900); // 15 minutes
 
-      // Remove refresh token
-      await tokenService.removeRefreshToken(req.userId);
+      // Remove only this device's refresh token (other devices stay logged in)
+      await tokenService.removeRefreshToken(req.userId, refreshToken);
 
       return res.status(200).json({ message: 'Logged out successfully' });
     } catch (error) {

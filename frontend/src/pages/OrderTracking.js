@@ -52,7 +52,7 @@ const OrderTracking = () => {
 
   // WebSocket connection for real-time updates
   useEffect(() => {
-    const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+    const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
     const socket = io(BACKEND_URL, { path: '/api/socket.io', transports: ['websocket', 'polling'] });
 
     socket.on('connect', () => {

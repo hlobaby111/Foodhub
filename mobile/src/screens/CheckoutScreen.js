@@ -8,7 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import { TextInput, Button, RadioButton, ActivityIndicator } from 'react-native-paper';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';

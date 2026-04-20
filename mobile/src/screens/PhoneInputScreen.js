@@ -34,11 +34,12 @@ export default function PhoneInputScreen({ navigation }) {
       const response = await api.post('/api/otp-auth/send-otp', { phone });
 
       if (response.data) {
-        // Navigate to OTP verification screen
         navigation.navigate('OTPVerification', {
           phone,
           // In development, pass OTP for auto-fill
           otp: response.data.otp,
+          // Server-authoritative resend wait time (defaults to 30s)
+          waitSeconds: 30,
         });
       }
     } catch (err) {

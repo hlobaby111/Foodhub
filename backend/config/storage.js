@@ -6,6 +6,11 @@ let storageKey = null;
 
 const initStorage = async () => {
   if (storageKey) return storageKey;
+
+  if (!process.env.EMERGENT_LLM_KEY) {
+    // No key configured — skip external storage (local dev)
+    return null;
+  }
   
   try {
     const response = await axios.post(`${STORAGE_URL}/init`, {

@@ -6,6 +6,7 @@ const CartContext = createContext({});
 export const CartProvider = ({ children }) => {
   const [cart, setCart] = useState([]);
   const [restaurant, setRestaurant] = useState(null);
+  const [selectedAddress, setSelectedAddress] = useState(null);
 
   useEffect(() => {
     loadCart();
@@ -13,18 +14,22 @@ export const CartProvider = ({ children }) => {
 
   useEffect(() => {
     saveCart();
-  }, [cart, restaurant]);
+  }, [cart, restaurant, selectedAddress]);
 
   const loadCart = async () => {
     try {
       const cartData = await AsyncStorage.getItem('cart');
       const restaurantData = await AsyncStorage.getItem('cartRestaurant');
+      const addressData = await AsyncStorage.getItem('selectedAddress');
       
       if (cartData) {
         setCart(JSON.parse(cartData));
       }
       if (restaurantData) {
         setRestaurant(JSON.parse(restaurantData));
+      }
+      if (addressData) {
+        setSelectedAddress(JSON.parse(addressData));
       }
     } catch (error) {
       console.error('Error loading cart:', error);
@@ -38,6 +43,11 @@ export const CartProvider = ({ children }) => {
         await AsyncStorage.setItem('cartRestaurant', JSON.stringify(restaurant));
       } else {
         await AsyncStorage.removeItem('cartRestaurant');
+      }
+      if (selectedAddress) {
+        await AsyncStorage.setItem('selectedAddress', JSON.stringify(selectedAddress));
+      } else {
+        await AsyncStorage.removeItem('selectedAddress');
       }
     } catch (error) {
       console.error('Error saving cart:', error);
@@ -106,13 +116,17 @@ export const CartProvider = ({ children }) => {
     <CartContext.Provider
       value={{
         cart,
+        cartItems: cart,
         restaurant,
+        cartRestaurant: restaurant,
         addToCart,
         removeFromCart,
         updateQuantity,
         clearCart,
         cartTotal: getCartTotal(),
         cartCount: getCartCount(),
+        selectedAddress,
+        setSelectedAddress,
       }}
     >
       {children}

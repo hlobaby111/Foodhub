@@ -3,58 +3,117 @@ import api from '../utils/api';
 
 const AuthContext = createContext(null);
 
+const STORAGE_KEYS = {
+  accessToken: 'accessToken',
+  refreshToken: 'refreshToken',
+  user: 'user',
+};
+
+const normalizeAuthPayload = (payload = {}) => {
+  const accessToken = payload.accessToken || payload.token;
+  const refreshToken = payload.refreshToken || null;
+  return {
+    accessToken,
+    refreshToken,
+    user: payload.user || null,
+  };
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Wrap loadUser in useCallback to stabilize reference
+  const clearSession = useCallback(() => {
+    localStorage.removeItem(STORAGE_KEYS.accessToken);
+    localStorage.removeItem(STORAGE_KEYS.refreshToken);
+    localStorage.removeItem(STORAGE_KEYS.user);
+    setUser(null);
+    setLoading(false);
+  }, []);
+
+  const persistSession = useCallback((payload) => {
+    const { accessToken, refreshToken, user: userData } = normalizeAuthPayload(payload);
+
+    if (!accessToken || !userData) {
+      throw new Error('Invalid auth response: missing access token or user data');
+    }
+
+    localStorage.setItem(STORAGE_KEYS.accessToken, accessToken);
+    if (refreshToken) {
+      localStorage.setItem(STORAGE_KEYS.refreshToken, refreshToken);
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.refreshToken);
+    }
+    localStorage.setItem(STORAGE_KEYS.user, JSON.stringify(userData));
+    setUser(userData);
+  }, []);
+
+  // Restore session from localStorage like mobile app.
   const loadUser = useCallback(async () => {
     try {
-      // No token needed - handled by httpOnly cookie
-      const response = await api.get('/api/auth/profile');
-      setUser(response.data.user);
-    } catch (error) {
-      console.error('Failed to load user:', error);
+      const storedUser = localStorage.getItem(STORAGE_KEYS.user);
+      const accessToken = localStorage.getItem(STORAGE_KEYS.accessToken);
+
+      if (storedUser && accessToken) {
+        const response = await api.get('/api/otp-auth/me', { skipAuthRefresh: true });
+        const userData = response.data?.user || JSON.parse(storedUser);
+        localStorage.setItem(STORAGE_KEYS.user, JSON.stringify(userData));
+        setUser(userData);
+      } else {
+        setUser(null);
+      }
+    } catch {
+      localStorage.removeItem(STORAGE_KEYS.accessToken);
+      localStorage.removeItem(STORAGE_KEYS.refreshToken);
+      localStorage.removeItem(STORAGE_KEYS.user);
       setUser(null);
     } finally {
       setLoading(false);
     }
-  }, []); // No dependencies needed as it only uses stable functions
+  }, []);
 
   useEffect(() => {
-    // Always try to load user on mount (cookie-based)
     loadUser();
-  }, [loadUser]); // Fixed: Added loadUser dependency
+  }, [loadUser]);
+
+  // Listen for session expiry events dispatched by the api.js interceptor
+  useEffect(() => {
+    const handleExpiry = () => clearSession();
+    window.addEventListener('auth:sessionExpired', handleExpiry);
+    return () => window.removeEventListener('auth:sessionExpired', handleExpiry);
+  }, [clearSession]);
 
   const login = useCallback(async (email, password) => {
     const response = await api.post('/api/auth/login', { email, password });
-    const { user: userData } = response.data;
-    // Token is set as httpOnly cookie by backend
-    setUser(userData);
+    persistSession(response.data);
     return response.data;
-  }, [setUser]); // Fixed: Added setUser dependency
+  }, [persistSession]);
 
   const register = useCallback(async (userData) => {
     const response = await api.post('/api/auth/register', userData);
-    const { user: newUser } = response.data;
-    // Token is set as httpOnly cookie by backend
-    setUser(newUser);
+    persistSession(response.data);
     return response.data;
-  }, [setUser]); // Fixed: Added setUser dependency
+  }, [persistSession]);
+
+  const verifyOTPLogin = useCallback(async ({ phone, otp }) => {
+    const response = await api.post('/api/otp-auth/verify-otp', { phone, otp });
+    persistSession(response.data);
+    return response.data;
+  }, [persistSession]);
 
   const logout = useCallback(async () => {
     try {
-      // Call backend to clear httpOnly cookie
-      await api.post('/api/auth/logout');
-    } catch (error) {
-      console.error('Logout error:', error);
+      const refreshToken = localStorage.getItem(STORAGE_KEYS.refreshToken);
+      await api.post('/api/otp-auth/logout', { refreshToken });
+    } catch {
+      // Ignore errors and clear local session anyway.
     } finally {
-      setUser(null);
+      clearSession();
     }
-  }, [setUser]); // Fixed: Added setUser dependency
+  }, [clearSession]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, loadUser }}>
+    <AuthContext.Provider value={{ user, loading, login, register, verifyOTPLogin, persistSession, logout, loadUser }}>
       {children}
     </AuthContext.Provider>
   );

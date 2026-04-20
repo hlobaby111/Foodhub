@@ -11,11 +11,16 @@ export const CartProvider = ({ children }) => {
     const saved = localStorage.getItem('cartRestaurant');
     return saved ? JSON.parse(saved) : null;
   });
+  const [selectedAddress, setSelectedAddress] = useState(() => {
+    const saved = localStorage.getItem('selectedAddress');
+    return saved ? JSON.parse(saved) : null;
+  });
 
   useEffect(() => {
     localStorage.setItem('cart', JSON.stringify(cartItems));
     localStorage.setItem('cartRestaurant', JSON.stringify(cartRestaurant));
-  }, [cartItems, cartRestaurant]);
+    localStorage.setItem('selectedAddress', JSON.stringify(selectedAddress));
+  }, [cartItems, cartRestaurant, selectedAddress]);
 
   const addToCart = (item, restaurant) => {
     if (cartRestaurant && cartRestaurant._id !== restaurant._id) {
@@ -66,7 +71,8 @@ export const CartProvider = ({ children }) => {
   return (
     <CartContext.Provider value={{
       cartItems, cartRestaurant, addToCart, removeFromCart,
-      updateQuantity, clearCart, cartTotal, cartCount
+      updateQuantity, clearCart, cartTotal, cartCount,
+      selectedAddress, setSelectedAddress
     }}>
       {children}
     </CartContext.Provider>

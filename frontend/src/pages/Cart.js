@@ -8,29 +8,47 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { RadioGroup, RadioGroupItem } from '../components/ui/radio-group';
 import { Separator } from '../components/ui/separator';
+import LocationSelector from '../components/LocationSelector';
 import { toast } from 'sonner';
 import {
   Trash2, Plus, Minus, ArrowLeft, ShoppingCart, StickyNote,
-  Tag, Clock, CreditCard, Banknote, ChevronRight, Sparkles
+  Tag, Clock, CreditCard, Banknote, ChevronRight, Sparkles, MapPin
 } from 'lucide-react';
 
 const Cart = () => {
-  const { cartItems, cartRestaurant, updateQuantity, removeFromCart, clearCart, cartTotal } = useCart();
+  const { cartItems, cartRestaurant, updateQuantity, removeFromCart, clearCart, cartTotal, selectedAddress, setSelectedAddress } = useCart();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [notes, setNotes] = useState('');
   const [couponCode, setCouponCode] = useState('');
   const [couponApplied, setCouponApplied] = useState(null);
   const [suggestedItems, setSuggestedItems] = useState([]);
+  const [showLocationSelector, setShowLocationSelector] = useState(false);
   const [address, setAddress] = useState({
-    street: user?.address?.street || '',
-    city: user?.address?.city || 'Mumbai',
-    state: user?.address?.state || 'Maharashtra',
-    pincode: user?.address?.pincode || ''
+    street: selectedAddress?.street || user?.address?.street || '',
+    city: selectedAddress?.city || user?.address?.city || 'Mumbai',
+    state: selectedAddress?.state || user?.address?.state || 'Maharashtra',
+    pincode: selectedAddress?.pincode || user?.address?.pincode || '',
+    lat: selectedAddress?.lat,
+    lng: selectedAddress?.lng,
   });
   const [phone, setPhone] = useState(user?.phone || '');
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    // Update address if selectedAddress changes (from context)
+    if (selectedAddress) {
+      setAddress({
+        street: selectedAddress.street || '',
+        city: selectedAddress.city || 'Mumbai',
+        state: selectedAddress.state || 'Maharashtra',
+        pincode: selectedAddress.pincode || '',
+        lat: selectedAddress.lat,
+        lng: selectedAddress.lng,
+      });
+    }
+  }, [selectedAddress]);
 
   useEffect(() => {
     if (cartRestaurant) {
@@ -74,13 +92,26 @@ const Cart = () => {
     setSuggestedItems(prev => prev.filter(i => i._id !== item._id));
   };
 
+  const handleSelectAddress = (selectedAddr) => {
+    setSelectedAddress(selectedAddr);
+    setAddress({
+      street: selectedAddr.street || '',
+      city: selectedAddr.city || 'Mumbai',
+      state: selectedAddr.state || 'Maharashtra',
+      pincode: selectedAddr.pincode || '',
+      lat: selectedAddr.lat,
+      lng: selectedAddr.lng,
+    });
+    toast.success('Address updated!');
+  };
+
   const discount = couponApplied?.discount || 0;
   const finalTotal = cartTotal - discount;
   const deliveryFee = cartTotal >= 299 ? 0 : 30;
   const grandTotal = finalTotal + deliveryFee;
 
   const handlePlaceOrder = async () => {
-    if (!address.street || !address.pincode || !phone) {
+    if (!address.street || !phone) {
       toast.error('Please fill in all delivery details');
       return;
     }
@@ -296,20 +327,27 @@ const Cart = () => {
               </div>
             </div>
             <div className="space-y-3">
-              <div>
-                <Label className="text-xs">Street Address</Label>
-                <Input value={address.street} onChange={(e) => setAddress({ ...address, street: e.target.value })} placeholder="123 Main Street" className="mt-1 text-sm" data-testid="cart-street-input" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-xs">City</Label>
-                  <Input value={address.city} onChange={(e) => setAddress({ ...address, city: e.target.value })} className="mt-1 text-sm" data-testid="cart-city-input" />
+              {/* Location Button */}
+              <Button
+                onClick={() => setShowLocationSelector(true)}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white justify-start"
+                data-testid="open-address-selector"
+              >
+                <MapPin className="w-4 h-4 mr-2 flex-shrink-0" />
+                {address.street ? `📍 ${address.street}` : 'Select Delivery Location'}
+              </Button>
+
+              {/* Display Selected Address */}
+              {address.street && (
+                <div className="bg-green-50 rounded-lg p-3 border border-green-200">
+                  <p className="text-xs font-semibold text-green-800 mb-1">Delivery Address</p>
+                  <p className="text-sm text-green-700">
+                    {address.street}, {address.city}, {address.state} {address.pincode}
+                  </p>
                 </div>
-                <div>
-                  <Label className="text-xs">Pincode</Label>
-                  <Input value={address.pincode} onChange={(e) => setAddress({ ...address, pincode: e.target.value })} className="mt-1 text-sm" data-testid="cart-pincode-input" />
-                </div>
-              </div>
+              )}
+
+              {/* Phone Input */}
               <div>
                 <Label className="text-xs">Phone</Label>
                 <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="9876543210" className="mt-1 text-sm" data-testid="cart-phone-input" />
@@ -409,6 +447,12 @@ const Cart = () => {
           </div>
         </div>
       </div>
+
+      <LocationSelector
+        isOpen={showLocationSelector}
+        onClose={() => setShowLocationSelector(false)}
+        onSelectAddress={handleSelectAddress}
+      />
     </div>
   );
 };

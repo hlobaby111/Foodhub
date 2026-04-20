@@ -15,7 +15,10 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
 # MongoDB connection
-mongo_url = os.environ['MONGO_URL']
+mongo_url = os.environ.get('MONGO_URI') or os.environ.get('MONGO_URL')
+if not mongo_url:
+    raise RuntimeError('Set MONGO_URI or MONGO_URL in backend/.env before starting the server.')
+
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 

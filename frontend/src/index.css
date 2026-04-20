@@ -8,6 +8,8 @@
   :root {
     --background: 39 10% 99%;
     --foreground: 0 0% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
     --primary: 11 75% 55%;
     --primary-foreground: 0 0% 100%;
     --secondary: 30 14% 94%;

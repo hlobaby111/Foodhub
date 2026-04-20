@@ -9,6 +9,7 @@ const seedDatabase = async () => {
   try {
     const adminEmail = process.env.ADMIN_EMAIL || 'admin@foodhub.com';
     const adminPassword = process.env.ADMIN_PASSWORD || 'Admin@123';
+    const adminPhone = process.env.ADMIN_PHONE || '9876500000';
     
     let admin = await User.findOne({ email: adminEmail });
     
@@ -18,6 +19,7 @@ const seedDatabase = async () => {
         name: 'Admin',
         email: adminEmail,
         password: hashedPassword,
+        phone: adminPhone,
         role: 'admin'
       });
       await admin.save();
@@ -211,7 +213,11 @@ const seedDatabase = async () => {
       console.log('Sample restaurants and menu items created');
     }
     
-    const credentialsPath = path.join(__dirname, '../../memory/test_credentials.md');
+    const credentialsDir = path.join(__dirname, '../memory');
+    if (!fs.existsSync(credentialsDir)) {
+      fs.mkdirSync(credentialsDir, { recursive: true });
+    }
+    const credentialsPath = path.join(credentialsDir, 'test_credentials.md');
     const credentialsContent = `# Test Credentials\n\n## Admin Account\n- Email: ${adminEmail}\n- Password: ${adminPassword}\n- Role: admin\n\n## Test Customer\n- Email: customer@test.com\n- Password: customer123\n- Role: customer\n\n## Restaurant Owner\n- Email: owner@test.com\n- Password: owner123\n- Role: restaurant_owner\n\n## Delivery Partner\n- Email: delivery@test.com\n- Password: delivery123\n- Role: delivery_partner\n\n## API Endpoints\n- Register: POST /api/auth/register\n- Login: POST /api/auth/login\n- Addresses: GET/POST /api/addresses\n- Delivery: GET /api/delivery/dashboard\n- Search: GET /api/search?q=query\n- WebSocket: /api/socket.io\n`;
     
     fs.writeFileSync(credentialsPath, credentialsContent);

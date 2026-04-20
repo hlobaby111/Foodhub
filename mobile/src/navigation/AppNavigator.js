@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { theme } from '../utils/theme';
 
@@ -21,6 +21,7 @@ import CheckoutScreen from '../screens/CheckoutScreen';
 import OrdersScreen from '../screens/OrdersScreen';
 import OrderTrackingScreen from '../screens/OrderTrackingScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import LocationSelectorScreen from '../screens/LocationSelectorScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -46,39 +47,32 @@ function HomeStack() {
   return (
     <Stack.Navigator
       screenOptions={{
-        headerStyle: {
-          backgroundColor: theme.colors.primary,
-        },
-        headerTintColor: theme.colors.surface,
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
+        headerShown: false,
       }}
     >
       <Stack.Screen
         name="HomeMain"
         component={HomeScreen}
-        options={{ title: 'FoodHub' }}
       />
       <Stack.Screen
         name="RestaurantDetail"
         component={RestaurantDetailScreen}
-        options={{ title: 'Restaurant' }}
       />
       <Stack.Screen
         name="Cart"
         component={CartScreen}
-        options={{ title: 'Cart' }}
+      />
+      <Stack.Screen
+        name="LocationSelector"
+        component={LocationSelectorScreen}
       />
       <Stack.Screen
         name="Checkout"
         component={CheckoutScreen}
-        options={{ title: 'Checkout' }}
       />
       <Stack.Screen
         name="OrderTracking"
         component={OrderTrackingScreen}
-        options={{ title: 'Track Order' }}
       />
     </Stack.Navigator>
   );
@@ -89,24 +83,16 @@ function OrdersStack() {
   return (
     <Stack.Navigator
       screenOptions={{
-        headerStyle: {
-          backgroundColor: theme.colors.primary,
-        },
-        headerTintColor: theme.colors.surface,
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
+        headerShown: false,
       }}
     >
       <Stack.Screen
         name="OrdersList"
         component={OrdersScreen}
-        options={{ title: 'My Orders' }}
       />
       <Stack.Screen
         name="OrderTracking"
         component={OrderTrackingScreen}
-        options={{ title: 'Track Order' }}
       />
     </Stack.Navigator>
   );
@@ -117,24 +103,16 @@ function ProfileStack() {
   return (
     <Stack.Navigator
       screenOptions={{
-        headerStyle: {
-          backgroundColor: theme.colors.primary,
-        },
-        headerTintColor: theme.colors.surface,
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
+        headerShown: false,
       }}
     >
       <Stack.Screen
         name="ProfileMain"
         component={ProfileScreen}
-        options={{ title: 'Profile' }}
       />
       <Stack.Screen
         name="Orders"
         component={OrdersScreen}
-        options={{ title: 'My Orders' }}
       />
     </Stack.Navigator>
   );
@@ -175,7 +153,7 @@ function MainTabs() {
         options={{
           tabBarLabel: 'Orders',
           tabBarIcon: ({ color, size }) => (
-            <Icon name="receipt-text" size={size} color={color} />
+            <Icon name="receipt" size={size} color={color} />
           ),
         }}
       />
