@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Bike, Mail, Lock } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 const DEMO_EMAIL = 'delivery.demo@foodhub.com';
 const DEMO_PASSWORD = 'demo123';
 
 export default function AuthPage({ mode = 'login' }) {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -22,7 +24,16 @@ export default function AuthPage({ mode = 'login' }) {
     }
 
     setError('');
-    navigate('/');
+    // Login user
+    login({
+      id: 'DP12345',
+      name: 'Rajesh Kumar',
+      email: DEMO_EMAIL,
+      phone: '+91 98765 43210',
+      vehicle: 'Motorcycle',
+      vehicleNumber: 'KA01AB1234'
+    });
+    navigate('/dashboard');
   };
 
   return (
