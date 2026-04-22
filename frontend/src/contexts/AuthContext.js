@@ -62,7 +62,9 @@ export const AuthProvider = ({ children }) => {
       } else {
         setUser(null);
       }
-    } catch {
+    } catch (error) {
+      // Clear session on auth failure
+      console.error('Failed to load user:', error);
       localStorage.removeItem(STORAGE_KEYS.accessToken);
       localStorage.removeItem(STORAGE_KEYS.refreshToken);
       localStorage.removeItem(STORAGE_KEYS.user);
@@ -105,15 +107,22 @@ export const AuthProvider = ({ children }) => {
     try {
       const refreshToken = localStorage.getItem(STORAGE_KEYS.refreshToken);
       await api.post('/api/otp-auth/logout', { refreshToken });
-    } catch {
-      // Ignore errors and clear local session anyway.
+    } catch (error) {
+      // Log error but clear local session anyway
+      console.error('Logout API error:', error);
     } finally {
       clearSession();
     }
   }, [clearSession]);
 
+  // Memoize context value to prevent unnecessary re-renders
+  const value = React.useMemo(
+    () => ({ user, loading, login, register, verifyOTPLogin, persistSession, logout, loadUser }),
+    [user, loading, login, register, verifyOTPLogin, persistSession, logout, loadUser]
+  );
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, verifyOTPLogin, persistSession, logout, loadUser }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
