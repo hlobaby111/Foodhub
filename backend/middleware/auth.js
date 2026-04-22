@@ -2,12 +2,12 @@ const tokenService = require('../services/tokenService');
 const User = require('../models/User');
 
 // Middleware to verify access token
-// Priority: httpOnly cookie (web) → Authorization header (mobile)
+// Priority: Authorization header (memory token) -> httpOnly cookie (fallback)
 const authMiddleware = async (req, res, next) => {
   try {
     const token =
-      req.cookies?.access_token ||
-      req.headers.authorization?.replace('Bearer ', '');
+      req.headers.authorization?.replace('Bearer ', '') ||
+      req.cookies?.access_token;
 
     if (!token) {
       return res.status(401).json({ message: 'No token provided' });
@@ -60,8 +60,8 @@ const roleMiddleware = (...allowedRoles) => {
 const optionalAuthMiddleware = async (req, res, next) => {
   try {
     const token =
-      req.cookies?.access_token ||
-      req.headers.authorization?.replace('Bearer ', '');
+      req.headers.authorization?.replace('Bearer ', '') ||
+      req.cookies?.access_token;
 
     if (token) {
       const decoded = await tokenService.verifyAccessToken(token);

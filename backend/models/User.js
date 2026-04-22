@@ -7,7 +7,7 @@ const userSchema = new mongoose.Schema({
   phone: { type: String, required: true, unique: true, trim: true },
   role: {
     type: String,
-    enum: ['customer', 'restaurant_owner', 'admin', 'delivery_partner'],
+    enum: ['customer', 'restaurant_owner', 'admin', 'delivery_partner', 'finance_admin', 'sub_admin'],
     default: 'customer'
   },
   isPhoneVerified: { type: Boolean, default: false },

@@ -1,0 +1,20 @@
+﻿@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* { -webkit-font-smoothing: antialiased; }
+body { font-family: 'Inter', sans-serif; background: #F8FAFC; color: #0F172A; }
+
+.btn-primary { @apply bg-primary hover:bg-primary-dark text-white font-semibold px-4 py-2 rounded-lg transition-all; }
+.btn-outline { @apply border border-gray-300 text-gray-700 font-semibold px-4 py-2 rounded-lg hover:bg-gray-50 transition-all; }
+.btn-danger { @apply bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2 rounded-lg transition-all; }
+.btn-success { @apply bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded-lg transition-all; }
+.card { @apply bg-white rounded-xl shadow-card; }
+.input { @apply w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none; }
+.badge { @apply text-xs font-semibold px-2.5 py-1 rounded-full; }
+.badge-green { @apply bg-green-100 text-green-700; }
+.badge-red { @apply bg-red-100 text-red-700; }
+.badge-yellow { @apply bg-yellow-100 text-yellow-700; }
+.badge-blue { @apply bg-blue-100 text-blue-700; }
+.badge-gray { @apply bg-gray-100 text-gray-700; }

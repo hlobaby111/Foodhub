@@ -1,87 +1,110 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
+import { Phone, Loader } from 'lucide-react';
 import api from '../utils/api';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
-
-const isValidIndianMobile = (phone) => /^[6-9]\d{9}$/.test(phone);
 
 const PhoneAuth = () => {
   const navigate = useNavigate();
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSendOTP = async (e) => {
     e.preventDefault();
 
-    if (!isValidIndianMobile(phone)) {
-      toast.error('Please enter a valid 10-digit mobile number');
+    if (phone.length !== 10 || !/^[6-9]\d{9}$/.test(phone)) {
+      setError('Please enter a valid 10-digit mobile number');
       return;
     }
 
-    try {
-      setLoading(true);
-      const response = await api.post('/api/otp-auth/send-otp', { phone });
+    setLoading(true);
+    setError('');
 
-      navigate(`/auth/otp?phone=${phone}`, {
-        replace: true,
+    try {
+      const response = await api.post('/api/otp-auth/send-otp', { phone });
+      navigate('/verify-otp', {
         state: {
+          phone,
           devOTP: response.data?.otp,
           waitSeconds: 30,
         },
       });
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to send OTP');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to send OTP');
     } finally {
       setLoading(false);
     }
   };
 
+  const handlePhoneChange = (e) => {
+    const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+    setPhone(value);
+    setError('');
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4" data-testid="phone-auth-page">
-      <div className="w-full max-w-md rounded-2xl border border-border bg-white p-8 shadow-sm">
-        <div className="text-center mb-8">
-          <div className="text-6xl mb-3">🍔</div>
-          <h1 className="text-3xl font-heading font-semibold">Welcome to FoodHub</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Enter your mobile number to get started</p>
+    <div className="min-h-screen bg-background flex items-center justify-center p-4" data-testid="phone-auth-page">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary/10 mb-6">
+            <Phone className="w-10 h-10 text-primary" />
+          </div>
+          <h1 className="text-4xl font-bold text-foreground mb-2">FoodHub</h1>
+          <p className="text-muted-foreground text-lg">Order food from your favorite restaurants</p>
         </div>
 
-        <form onSubmit={handleSendOTP} className="space-y-5">
-          <div>
-            <Label htmlFor="phone">Mobile Number</Label>
-            <div className="mt-1 flex">
-              <span className="inline-flex items-center rounded-l-md border border-r-0 border-input px-3 text-sm text-muted-foreground bg-muted/30">
-                +91
-              </span>
-              <Input
-                id="phone"
-                type="tel"
-                inputMode="numeric"
-                maxLength={10}
-                value={phone}
-                onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
-                className="rounded-l-none"
-                placeholder="10-digit mobile number"
-                data-testid="phone-input"
-              />
-            </div>
+        <div className="bg-white rounded-2xl shadow-lg border border-border p-8">
+          <div className="mb-6">
+            <h2 className="text-2xl font-semibold text-foreground mb-2">Enter Phone Number</h2>
+            <p className="text-sm text-muted-foreground">We'll send you an OTP to verify your number</p>
           </div>
 
-          <Button
-            type="submit"
-            className="w-full rounded-full"
-            disabled={loading || phone.length !== 10}
-            data-testid="send-otp-button"
-          >
-            {loading ? 'Sending OTP...' : 'Send OTP'}
-          </Button>
+          <form onSubmit={handleSendOTP}>
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-foreground mb-2">Mobile Number</label>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 px-4 py-3 bg-muted rounded-xl border border-border">
+                  <span className="text-lg">IN</span>
+                  <span className="text-foreground font-medium">+91</span>
+                </div>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={handlePhoneChange}
+                  placeholder="9876543210"
+                  className="flex-1 px-4 py-3 text-lg border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
+                  maxLength={10}
+                  autoFocus
+                />
+              </div>
+              {error && (
+                <p className="text-sm text-red-500 mt-2 flex items-center gap-1">
+                  <span className="inline-block w-4 h-4 rounded-full bg-red-100 text-red-600 text-xs flex items-center justify-center">!</span>
+                  {error}
+                </p>
+              )}
+            </div>
 
-          <p className="text-xs text-muted-foreground text-center leading-5">
+            <button
+              type="submit"
+              disabled={loading || phone.length !== 10}
+              className="w-full bg-primary hover:bg-primary/90 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {loading ? (
+                <>
+                  <Loader className="w-5 h-5 animate-spin" />
+                  Sending OTP...
+                </>
+              ) : (
+                'Continue'
+              )}
+            </button>
+          </form>
+
+          <p className="text-xs text-muted-foreground text-center mt-6 leading-relaxed">
             By continuing, you agree to our Terms of Service and Privacy Policy.
           </p>
-        </form>
+        </div>
       </div>
     </div>
   );

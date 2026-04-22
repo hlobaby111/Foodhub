@@ -32,7 +32,7 @@ const RestaurantDetail = () => {
     } catch (error) {
       console.error('Failed to fetch restaurant:', error);
       toast.error('Restaurant not found');
-      navigate('/');
+      navigate('/home');
     } finally {
       setLoading(false);
     }
@@ -54,7 +54,6 @@ const RestaurantDetail = () => {
       return;
     }
     addToCart(item, restaurant);
-    toast.success(`${item.name} added to cart`);
   };
 
   const getCartQuantity = (itemId) => {

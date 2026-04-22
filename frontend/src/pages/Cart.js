@@ -155,7 +155,7 @@ const Cart = () => {
         />
         <h2 className="text-xl sm:text-2xl font-heading font-semibold mb-2">Your cart is empty</h2>
         <p className="text-muted-foreground mb-6 text-sm">Add some delicious food to get started</p>
-        <Button className="rounded-full" onClick={() => navigate('/')} data-testid="browse-restaurants-button">
+        <Button className="rounded-full" onClick={() => navigate('/home')} data-testid="browse-restaurants-button">
           Browse Restaurants
         </Button>
       </div>

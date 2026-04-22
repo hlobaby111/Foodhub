@@ -4,11 +4,10 @@ import { AuthProvider } from './contexts/AuthContext';
 import { CartProvider } from './contexts/CartContext';
 import { Toaster } from './components/ui/sonner';
 import Navigation from './components/Navigation';
-import ProtectedRoute from './components/ProtectedRoute';
 import Home from './pages/Home';
-import AuthSplash from './pages/AuthSplash';
+import SplashScreen from './pages/SplashScreen';
 import PhoneAuth from './pages/PhoneAuth';
-import OTPAuth from './pages/OTPAuth';
+import OTPVerification from './pages/OTPVerification';
 import RestaurantDetail from './pages/RestaurantDetail';
 import Cart from './pages/Cart';
 import Orders from './pages/Orders';
@@ -21,26 +20,72 @@ import DeliveryDashboard from './pages/DeliveryDashboard';
 import { useCart } from './contexts/CartContext';
 import { useAuth } from './contexts/AuthContext';
 
+const RouteLoader = () => (
+  <div className="flex items-center justify-center min-h-screen" data-testid="loading-state">
+    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+  </div>
+);
+
+const ProtectedRoute = ({ children, allowedRoles }) => {
+  const { user, loading } = useAuth();
+
+  if (loading) return <RouteLoader />;
+  if (!user) return <Navigate to="/phone-auth" replace />;
+  if (allowedRoles && !allowedRoles.includes(user.role)) return <Navigate to="/home" replace />;
+
+  return children;
+};
+
+const PublicRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+
+  if (loading) return <RouteLoader />;
+  if (user) return <Navigate to="/home" replace />;
+
+  return children;
+};
+
 const AppContent = () => {
   const { cartCount } = useCart();
-  const { user } = useAuth();
   const location = useLocation();
-  const isAuthRoute = location.pathname.startsWith('/auth/');
+  const isAuthRoute = ['/', '/phone-auth', '/verify-otp'].includes(location.pathname);
 
 
   return (
     <div className="min-h-screen bg-background">
       {!isAuthRoute && <Navigation cartItemsCount={cartCount} />}
       <Routes>
-        <Route path="/auth/splash" element={<AuthSplash />} />
-        <Route path="/auth/phone" element={<PhoneAuth />} />
-        <Route path="/auth/otp" element={<OTPAuth />} />
+        <Route path="/" element={<SplashScreen />} />
+        <Route
+          path="/phone-auth"
+          element={
+            <PublicRoute>
+              <PhoneAuth />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/verify-otp"
+          element={
+            <PublicRoute>
+              <OTPVerification />
+            </PublicRoute>
+          }
+        />
 
-        <Route path="/" element={
-          user ? <Home /> : <Navigate to="/auth/splash" replace />
-        } />
-        <Route path="/login" element={<Navigate to="/auth/phone" replace />} />
-        <Route path="/register" element={<Navigate to="/auth/phone" replace />} />
+        <Route
+          path="/home"
+          element={
+            <ProtectedRoute>
+              <Home />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/login" element={<Navigate to="/phone-auth" replace />} />
+        <Route path="/register" element={<Navigate to="/phone-auth" replace />} />
+        <Route path="/auth/splash" element={<Navigate to="/" replace />} />
+        <Route path="/auth/phone" element={<Navigate to="/phone-auth" replace />} />
+        <Route path="/auth/otp" element={<Navigate to="/verify-otp" replace />} />
         <Route path="/restaurant/:id" element={
           <ProtectedRoute allowedRoles={['customer']}>
             <RestaurantDetail />

@@ -10,7 +10,7 @@ const AccountMenu = () => {
 
   const handleLogout = async () => {
     await logout();
-    navigate('/auth/phone', { replace: true });
+    navigate('/phone-auth', { replace: true });
   };
 
   return (
@@ -65,7 +65,7 @@ const AccountMenu = () => {
           </button>
         </div>
 
-        <Button className="mt-6" variant="outline" onClick={() => navigate('/')}>
+        <Button className="mt-6" variant="outline" onClick={() => navigate('/home')}>
           Back to Home
         </Button>
       </div>

@@ -36,15 +36,8 @@ router.post(
   otpController.verifyOTPAndAuth
 );
 
-// Refresh access token
-router.post(
-  '/refresh-token',
-  [
-    body('refreshToken').notEmpty().withMessage('Refresh token is required'),
-    validate,
-  ],
-  otpController.refreshAccessToken
-);
+// Refresh access token (from httpOnly cookie for web, or request body for mobile)
+router.post('/refresh-token', otpController.refreshAccessToken);
 
 // Logout
 router.post('/logout', authMiddleware, otpController.logout);

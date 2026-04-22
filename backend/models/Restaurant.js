@@ -20,7 +20,26 @@ const restaurantSchema = new mongoose.Schema({
   openingHours: { type: String, default: '9:00 AM - 10:00 PM' },
   minimumOrder: { type: Number, default: 0 },
   deliveryTime: { type: String, default: '30-40 mins' },
+  commissionPercent: { type: Number, default: 18 },
+  totalEarnings: { type: Number, default: 0 },
+  totalOrders: { type: Number, default: 0 },
   avgPrepTime: { type: Number, default: 25 },
+  // Extended profile fields
+  secondaryPhone: { type: String, trim: true },
+  deliveryType: { type: String, enum: ['self', 'platform'], default: 'platform' },
+  ownerAadhar: { url: String, storagePath: String },
+  ownerPan: { url: String, storagePath: String },
+  firmPan: { url: String, storagePath: String },
+  gstDoc: { url: String, storagePath: String },
+  fssaiDoc: { url: String, storagePath: String },
+  menuDoc: { url: String, storagePath: String },
+  bankDetails: {
+    holderName: String,
+    accountName: String,
+    accountNo: String,
+    ifsc: String
+  },
+  profileCompleted: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now }
 });
 

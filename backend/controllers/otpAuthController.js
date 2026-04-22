@@ -2,6 +2,21 @@ const User = require('../models/User');
 const otpService = require('../services/otpService');
 const tokenService = require('../services/tokenService');
 
+const REFRESH_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'strict',
+  path: '/',
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+};
+
+const CLEAR_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'strict',
+  path: '/',
+};
+
 class OTPAuthController {
   // Send OTP to phone number
   async sendOTP(req, res) {
@@ -67,19 +82,29 @@ class OTPAuthController {
       let user = await User.findOne({ phone });
       let isNewUser = false;
 
+      const { name, email, role: reqRole, isRegister } = req.body;
+
       if (!user) {
         // New user - create account
+        const assignedRole = (isRegister && reqRole === 'restaurant_owner') ? 'restaurant_owner' : 'customer';
         user = new User({
           phone,
-          role: 'customer',
+          name: name || undefined,
+          email: email || undefined,
+          role: assignedRole,
           isActive: true,
           isPhoneVerified: true,
         });
         await user.save();
         isNewUser = true;
       } else {
-        // Existing user - update phone verification
+        // Existing user - update phone verification and optional profile fields
         user.isPhoneVerified = true;
+        if (isRegister) {
+          if (name) user.name = name;
+          if (email) user.email = email;
+          if (reqRole === 'restaurant_owner') user.role = 'restaurant_owner';
+        }
         await user.save();
       }
 
@@ -92,12 +117,16 @@ class OTPAuthController {
       // Store refresh token
       await tokenService.storeRefreshToken(user._id.toString(), refreshToken);
 
+      // Web flow: keep refresh token in secure httpOnly cookie.
+      res.cookie('refresh_token', refreshToken, REFRESH_COOKIE_OPTIONS);
+      // Ensure legacy access-token cookie does not interfere with header-based auth.
+      res.clearCookie('access_token', CLEAR_COOKIE_OPTIONS);
+
       return res.status(200).json({
         message: isNewUser ? 'Account created successfully' : 'Login successful',
         isNewUser,
         needsProfile: !user.name || !user.email, // Check if profile needs completion
         accessToken,
-        refreshToken,
         user: {
           id: user._id,
           phone: user.phone,
@@ -116,7 +145,7 @@ class OTPAuthController {
   // Refresh access token
   async refreshAccessToken(req, res) {
     try {
-      const { refreshToken } = req.body;
+      const refreshToken = req.cookies?.refresh_token || req.body?.refreshToken;
 
       if (!refreshToken) {
         return res.status(400).json({ message: 'Refresh token required' });
@@ -129,9 +158,14 @@ class OTPAuthController {
       const decoded = await tokenService.verifyRefreshToken(tokens.refreshToken);
       await tokenService.storeRefreshToken(decoded.userId, tokens.refreshToken);
 
+      // Rotate refresh cookie for web clients.
+      res.cookie('refresh_token', tokens.refreshToken, REFRESH_COOKIE_OPTIONS);
+      // Keep access token memory/header-based for web clients.
+      res.clearCookie('access_token', CLEAR_COOKIE_OPTIONS);
+
       return res.status(200).json({
         message: 'Token refreshed successfully',
-        ...tokens,
+        accessToken: tokens.accessToken,
       });
     } catch (error) {
       console.error('Refresh Token Error:', error);
@@ -142,14 +176,22 @@ class OTPAuthController {
   // Logout
   async logout(req, res) {
     try {
-      const token = req.headers.authorization?.replace('Bearer ', '');
-      const { refreshToken } = req.body;
+      const token =
+        req.cookies?.access_token ||
+        req.headers.authorization?.replace('Bearer ', '');
+      const refreshToken = req.cookies?.refresh_token || req.body?.refreshToken;
 
       // Blacklist the current access token for its remaining lifetime
-      await tokenService.blacklistToken(token, 900); // 15 minutes
+      if (token) {
+        await tokenService.blacklistToken(token, 900); // 15 minutes
+      }
 
       // Remove only this device's refresh token (other devices stay logged in)
       await tokenService.removeRefreshToken(req.userId, refreshToken);
+
+      // Clear web refresh cookie
+      res.clearCookie('access_token', CLEAR_COOKIE_OPTIONS);
+      res.clearCookie('refresh_token', CLEAR_COOKIE_OPTIONS);
 
       return res.status(200).json({ message: 'Logged out successfully' });
     } catch (error) {

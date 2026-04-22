@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Final Flow - Current Auth System</title>
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --card: #ffffff;
+      --ink: #0f172a;
+      --muted: #475569;
+      --line: #e2e8f0;
+      --accent: #0f766e;
+      --accent-soft: #ccfbf1;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+      color: var(--ink);
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.5;
+    }
+
+    .wrap {
+      max-width: 980px;
+      margin: 0 auto;
+    }
+
+    .hero {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      letter-spacing: 0.3px;
+    }
+
+    .sub {
+      margin: 0;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .badge {
+      display: inline-block;
+      margin-top: 10px;
+      background: var(--accent-soft);
+      color: #115e59;
+      border: 1px solid #99f6e4;
+      border-radius: 999px;
+      font-size: 12px;
+      padding: 4px 10px;
+      font-weight: 600;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 18px;
+      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+    }
+
+    h2 {
+      margin: 0 0 10px;
+      font-size: 17px;
+    }
+
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 13px;
+      color: #111827;
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px;
+    }
+
+    .note {
+      margin-top: 10px;
+      color: #334155;
+      font-size: 13px;
+    }
+
+    .footer {
+      text-align: center;
+      color: #64748b;
+      font-size: 12px;
+      margin-top: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>Final Flow - How Your System Works Now</h1>
+      <p class="sub">
+        This reflects the current implemented behavior in your repo after recent auth updates.
+      </p>
+      <span class="badge">Admin + Restaurant apps: OTP login, memory access token, cookie refresh, MongoDB menu images, open/close controls</span>
+    </section>
+
+    <div class="grid">
+      <section class="card">
+        <h2>1) First Time Login (Admin + Restaurant Apps)</h2>
+        <pre>User enters phone number
+  -> Frontend validates phone length (10 digits)
+  -> POST /api/otp-auth/send-otp
+  -> User enters OTP
+  -> Frontend validates OTP length (6 digits)
+  -> POST /api/otp-auth/verify-otp
+
+Backend:
+  1. Verifies OTP
+  2. Finds/creates user
+  3. Generates accessToken (15m) + refreshToken (7d)
+  4. Stores refresh token in Redis set (rotation support)
+  5. Sets refresh_token cookie (httpOnly, sameSite=strict, secure in prod)
+  6. Returns JSON: { accessToken, user }
+
+Frontend:
+  1. applyLoginResult(response)
+  2. setAccessToken(accessToken) in memory (context/session module)
+  3. setUser(user) in context
+  4. Navigate to dashboard flow</pre>
+      </section>
+
+      <section class="card">
+        <h2>2) Every API Call After Login</h2>
+        <pre>Hook/Page -> API service -> axios client
+  -> Request interceptor attaches:
+     Authorization: Bearer &lt;accessToken&gt;
+
+Backend auth middleware:
+  1. Reads token from cookie OR Authorization header
+  2. verifyAccessToken()
+  3. Loads user from DB and checks active status
+  4. If valid -> next()
+  5. If invalid/expired -> 401</pre>
+      </section>
+
+      <section class="card">
+        <h2>3) Access Token Expiry (15 min)</h2>
+        <pre>Any API request gets 401 (Token expired / Invalid token)
+  -> Axios response interceptor catches it
+  -> If request already retried (_retry=true), fail and trigger unauthorized
+  -> If refresh already running, queue request
+  -> Else:
+     POST /api/otp-auth/refresh-token   (no body needed for web)
+     withCredentials=true so cookie is auto-sent
+
+Backend refresh:
+  1. Reads refresh token from cookie (fallback body for compatibility)
+  2. Verifies refresh token
+  3. Ensures token exists in Redis set (rotation check)
+  4. Removes old refresh token
+  5. Issues new access token + refresh token
+  6. Stores new refresh token
+  7. Sets new refresh cookie
+  8. Returns { accessToken }
+
+Frontend:
+  1. setAccessToken(newAccessToken)
+  2. Flush queued requests
+  3. Retry original request
+  4. User usually sees no interruption</pre>
+      </section>
+
+      <section class="card">
+        <h2>4) App Opens After Being Closed</h2>
+        <pre>App starts -> AuthContext bootstrap runs
+  -> accessToken is empty (memory was reset)
+  -> POST /api/otp-auth/refresh-token (cookie auto-sent)
+
+If refresh fails:
+  -> clear auth state
+  -> stay on login
+
+If refresh succeeds:
+  -> setAccessToken(newAccessToken)
+  -> GET /api/otp-auth/me
+  -> setUser(me)
+  -> isReady=true
+  -> protected routes open</pre>
+        <p class="note">
+          This follows the "refresh first on app start" strategy (instead of returning a new access token from /me).
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>5) Logout</h2>
+        <pre>User clicks Logout
+  -> POST /api/otp-auth/logout
+
+Backend:
+  1. Reads current access token + refresh cookie
+  2. Blacklists access token (short TTL)
+  3. Removes refresh token from Redis set
+  4. Clears refresh_token cookie
+  5. Returns 200
+
+Frontend:
+  1. clear in-memory access token
+  2. clear user in context
+  3. redirect to /login</pre>
+      </section>
+
+      <section class="card">
+        <h2>6) Admin Menu Item Add Flow</h2>
+        <pre>Admin fills form + optional image
+  -> createMenuItem(e)
+  -> setSubmitLoading(true)
+  -> form disabled, button shows "Creating..."
+
+STEP 1: Create item
+  -> POST /api/admin/restaurants/:id/menu
+  -> If FAIL: show exact backend error and stop
+  -> If SUCCESS: created.menuItem._id available
+
+STEP 2: Upload image (optional)
+  -> POST /api/upload/admin/menu-item/:menuItemId
+  -> If FAIL: show "Item created, image failed. Add image later."
+             continue to step 3 (do not stop)
+  -> If SUCCESS: image stored in MongoDB (MenuItemImage)
+
+STEP 3: Refresh + cleanup
+  -> refetch() -> GET /api/admin/restaurants/:id
+  -> menu list updates with new item/image
+  -> reset form + clear selected image
+  -> setSubmitLoading(false)</pre>
+      </section>
+
+      <section class="card">
+        <h2>7) Restaurant Menu Flow</h2>
+        <pre>Restaurant app /menu now has two feature boxes:
+  1. Menu Items
+  2. Add Item
+
+Menu Items box:
+  -> Search items
+  -> Edit button opens modal (same pattern as admin)
+  -> Available / Not Available button toggles stock state
+  -> Delete button removes item
+
+Add Item box:
+  -> Fill visible form fields + optional image
+  -> Same 3-step flow as admin:
+     STEP 1 create item
+     STEP 2 upload image (non-blocking)
+     STEP 3 refresh and cleanup</pre>
+      </section>
+
+      <section class="card">
+        <h2>8) Restaurant Open/Close Control</h2>
+        <pre>Restaurant app header button is now real (not local-only UI state):
+  -> PUT /api/restaurants/my/toggle-active
+  -> Backend toggles restaurant.isActive for owner's restaurant
+  -> UI shows Open / Closed with Updating... state
+
+Admin restaurant dashboard also uses Open / Close terminology:
+  -> Open Restaurant / Close Restaurant button
+  -> Uses existing admin toggle-active endpoint</pre>
+      </section>
+
+      <section class="card">
+        <h2>9) Important Reality Check</h2>
+        <pre>- Admin app and Restaurant app now follow this updated flow.
+- Customer web/mobile apps still have their own auth implementations.
+- Admin/Restaurant login is OTP-based, not email/password.</pre>
+      </section>
+    </div>
+
+    <p class="footer">Generated on April 22, 2026</p>
+  </div>
+</body>
+</html>

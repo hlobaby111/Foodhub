@@ -83,7 +83,7 @@ const Orders = () => {
         <div className="text-center py-16 sm:py-20" data-testid="no-orders">
           <Package className="w-14 h-14 sm:w-16 sm:h-16 mx-auto text-muted-foreground/40 mb-4" />
           <p className="text-base sm:text-lg text-muted-foreground">No orders yet</p>
-          <Button className="rounded-full mt-4" onClick={() => navigate('/')} data-testid="browse-link">
+          <Button className="rounded-full mt-4" onClick={() => navigate('/home')} data-testid="browse-link">
             Browse Restaurants
           </Button>
         </div>
