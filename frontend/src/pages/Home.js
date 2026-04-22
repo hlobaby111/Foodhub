@@ -33,14 +33,14 @@ const RestaurantCard = ({ restaurant, onClick }) => {
       {/* Photo carousel */}
       <div className="aspect-[16/10] overflow-hidden relative">
         {photos.map((url, i) => (
-          <img key={i} src={url} alt={restaurant.name}
+          <img key={`${restaurant._id}-img-${i}`} src={url} alt={restaurant.name}
             className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${i === photoIdx ? 'opacity-100' : 'opacity-0'}`}
           />
         ))}
         {photos.length > 1 && (
           <div className="absolute bottom-2 right-2 flex gap-1">
             {photos.map((_, i) => (
-              <span key={i} className={`w-1.5 h-1.5 rounded-full transition-all ${i === photoIdx ? 'bg-white w-3' : 'bg-white/50'}`} />
+              <span key={`${restaurant._id}-dot-${i}`} className={`w-1.5 h-1.5 rounded-full transition-all ${i === photoIdx ? 'bg-white w-3' : 'bg-white/50'}`} />
             ))}
           </div>
         )}

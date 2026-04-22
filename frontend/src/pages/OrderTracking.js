@@ -32,13 +32,15 @@ const OrderTracking = () => {
   const [pollingActive, setPollingActive] = useState(true);
   const [deliveryLocation, setDeliveryLocation] = useState(null);
 
+import logger from '../utils/logger';
+
   // Fixed: Wrap fetchOrder in useCallback to stabilize reference
   const fetchOrder = useCallback(async () => {
     try {
       const response = await api.get(`/api/orders/${id}`);
       setOrder(response.data.order);
     } catch (error) {
-      console.error('Failed to fetch order:', error);
+      logger.apiError(`/api/orders/${id}`, error);
       toast.error('Order not found');
       navigate('/orders');
     } finally {
@@ -56,12 +58,12 @@ const OrderTracking = () => {
     const socket = io(BACKEND_URL, { path: '/api/socket.io', transports: ['websocket', 'polling'] });
 
     socket.on('connect', () => {
-      console.log('Connected to WebSocket');
+      logger.socketEvent('connect', { orderId: id });
       socket.emit('join_order', id);
     });
 
     socket.on('order_update', (data) => {
-      console.log('Order update received:', data);
+      logger.socketEvent('order_update', data);
       fetchOrder();
       toast.info(`Order status: ${data.status?.replace(/_/g, ' ')}`);
     });
