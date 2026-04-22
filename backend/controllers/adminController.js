@@ -381,16 +381,291 @@ const getBanners = async (req, res, next) => {
 
 const upsertBanner = async (req, res, next) => {
   try {
-    const { imageUrl, title, subtitle, link, order: bannerOrder } = req.body;
+    const { imageUrl, title, subtitle, link, order: bannerOrder, targetAudience, validFrom, validUntil, linkUrl, displayOrder } = req.body;
     const mongoose = require('mongoose');
     const db = mongoose.connection.db;
     await db.collection('banners').insertOne({
-      imageUrl, title, subtitle, link,
-      order: bannerOrder || 0,
+      imageUrl, 
+      title, 
+      subtitle, 
+      link: link || linkUrl,
+      linkUrl: linkUrl || link,
+      targetAudience: targetAudience || 'all_users',
+      validFrom: validFrom ? new Date(validFrom) : null,
+      validUntil: validUntil ? new Date(validUntil) : null,
+      order: bannerOrder || displayOrder || 0,
+      displayOrder: displayOrder || bannerOrder || 0,
       isActive: true,
       createdAt: new Date()
     });
     res.json({ message: 'Banner added' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const deleteBanner = async (req, res, next) => {
+  try {
+    const mongoose = require('mongoose');
+    const db = mongoose.connection.db;
+    const ObjectId = mongoose.Types.ObjectId;
+    await db.collection('banners').deleteOne({ _id: new ObjectId(req.params.id) });
+    res.json({ message: 'Banner deleted' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get single order details
+const getOrderDetails = async (req, res, next) => {
+  try {
+    const order = await Order.findById(req.params.id)
+      .populate('customer', 'name email phone')
+      .populate('restaurant', 'name phone location email')
+      .populate('deliveryPartner')
+      .populate({
+        path: 'deliveryPartner',
+        populate: { path: 'user', select: 'name phone' }
+      })
+      .populate('items.menuItem');
+    
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+    
+    res.json({ order });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Admin cancel order
+const adminCancelOrder = async (req, res, next) => {
+  try {
+    const { reason } = req.body;
+    
+    if (!reason || reason.trim().length < 10) {
+      return res.status(400).json({ message: 'Cancellation reason required (min 10 chars)' });
+    }
+    
+    const order = await Order.findById(req.params.id);
+    
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+    
+    if (['delivered', 'cancelled'].includes(order.orderStatus)) {
+      return res.status(400).json({ message: 'Cannot cancel this order' });
+    }
+    
+    order.orderStatus = 'cancelled';
+    order.cancelReason = `Admin: ${reason.trim()}`;
+    order.cancelledAt = new Date();
+    order.cancelledBy = 'admin';
+    order.statusHistory.push({ status: 'cancelled' });
+    
+    await order.save();
+    
+    // Emit WebSocket event
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`order_${order._id}`).emit('order_update', {
+        orderId: order._id.toString(),
+        status: 'cancelled',
+        timestamp: new Date()
+      });
+    }
+    
+    // Create audit log
+    const mongoose = require('mongoose');
+    const db = mongoose.connection.db;
+    await db.collection('audit_logs').insertOne({
+      action: 'CANCEL_ORDER',
+      adminId: req.user._id,
+      adminName: req.user.name,
+      orderId: order._id,
+      orderNumber: order.orderNumber,
+      reason: reason.trim(),
+      timestamp: new Date()
+    });
+    
+    res.json({ message: 'Order cancelled successfully', order });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Admin assign delivery partner
+const adminAssignDelivery = async (req, res, next) => {
+  try {
+    const { deliveryPartnerId } = req.body;
+    
+    if (!deliveryPartnerId) {
+      return res.status(400).json({ message: 'Delivery partner ID required' });
+    }
+    
+    const order = await Order.findById(req.params.id);
+    
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+    
+    if (order.orderStatus !== 'ready') {
+      return res.status(400).json({ message: 'Order must be ready before assigning delivery' });
+    }
+    
+    const deliveryPartner = await DeliveryPartner.findById(deliveryPartnerId);
+    
+    if (!deliveryPartner || deliveryPartner.status !== 'active') {
+      return res.status(400).json({ message: 'Invalid or inactive delivery partner' });
+    }
+    
+    order.deliveryPartner = deliveryPartnerId;
+    order.orderStatus = 'picked_up';
+    order.statusHistory.push({ status: 'picked_up' });
+    
+    await order.save();
+    
+    // Emit WebSocket event
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`order_${order._id}`).emit('order_update', {
+        orderId: order._id.toString(),
+        status: 'picked_up',
+        deliveryPartner: deliveryPartner,
+        timestamp: new Date()
+      });
+    }
+    
+    // Create audit log
+    const mongoose = require('mongoose');
+    const db = mongoose.connection.db;
+    await db.collection('audit_logs').insertOne({
+      action: 'ASSIGN_DELIVERY',
+      adminId: req.user._id,
+      adminName: req.user.name,
+      orderId: order._id,
+      orderNumber: order.orderNumber,
+      deliveryPartnerId: deliveryPartnerId,
+      timestamp: new Date()
+    });
+    
+    res.json({ message: 'Delivery partner assigned successfully', order });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Admin issue refund
+const adminIssueRefund = async (req, res, next) => {
+  try {
+    const { reason, amount } = req.body;
+    
+    if (!reason || !amount) {
+      return res.status(400).json({ message: 'Reason and amount required' });
+    }
+    
+    const order = await Order.findById(req.params.id).populate('customer');
+    
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+    
+    if (order.paymentStatus !== 'completed') {
+      return res.status(400).json({ message: 'Cannot refund unpaid order' });
+    }
+    
+    // Create refund record
+    const refund = new Refund({
+      order: order._id,
+      customer: order.customer._id,
+      amount: Number(amount),
+      reason: reason.trim(),
+      status: 'approved',
+      adminNote: `Admin issued refund: ${reason.trim()}`,
+      decidedBy: req.user._id,
+      decidedAt: new Date()
+    });
+    
+    await refund.save();
+    
+    order.paymentStatus = 'refunded';
+    await order.save();
+    
+    // Create audit log
+    const mongoose = require('mongoose');
+    const db = mongoose.connection.db;
+    await db.collection('audit_logs').insertOne({
+      action: 'ISSUE_REFUND',
+      adminId: req.user._id,
+      adminName: req.user.name,
+      orderId: order._id,
+      orderNumber: order.orderNumber,
+      amount: Number(amount),
+      reason: reason.trim(),
+      timestamp: new Date()
+    });
+    
+    res.json({ message: 'Refund issued successfully', refund });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get user details with order history
+const getUserDetails = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.params.id).select('-password');
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    const orders = await Order.find({ customer: user._id })
+      .populate('restaurant', 'name')
+      .sort({ createdAt: -1 })
+      .limit(20);
+    
+    const stats = await Order.aggregate([
+      { $match: { customer: user._id, paymentStatus: 'completed' } },
+      { $group: { _id: null, totalSpent: { $sum: '$totalAmount' }, totalOrders: { $sum: 1 } } }
+    ]);
+    
+    res.json({
+      user,
+      orders,
+      stats: stats[0] || { totalSpent: 0, totalOrders: 0 }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get audit logs
+const getAuditLogs = async (req, res, next) => {
+  try {
+    const { page = 1, limit = 50 } = req.query;
+    const skip = (page - 1) * limit;
+    
+    const mongoose = require('mongoose');
+    const db = mongoose.connection.db;
+    const logs = await db.collection('audit_logs')
+      .find({})
+      .sort({ timestamp: -1 })
+      .skip(skip)
+      .limit(Number(limit))
+      .toArray();
+    
+    const total = await db.collection('audit_logs').countDocuments();
+    
+    res.json({
+      logs,
+      pagination: {
+        total,
+        page: Number(page),
+        pages: Math.ceil(total / limit)
+      }
+    });
   } catch (error) {
     next(error);
   }
@@ -411,6 +686,13 @@ module.exports = {
   updateRestaurantMenuItem,
   deleteRestaurantMenuItem,
   getAllOrders,
+  getOrderDetails,
+  adminCancelOrder,
+  adminAssignDelivery,
+  adminIssueRefund,
+  getUserDetails,
+  getAuditLogs,
   getBanners,
-  upsertBanner
+  upsertBanner,
+  deleteBanner
 };

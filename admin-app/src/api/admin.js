@@ -42,6 +42,12 @@ export const toggleUserStatus = (id) => client.put(`/admin/users/${id}/toggle-st
 
 // ORDERS
 export const listOrders = (params) => client.get('/admin/orders', { params });
+export const getOrderDetails = (id) => client.get(`/admin/orders/${id}`);
+export const adminCancelOrder = (id, reason) => client.post(`/admin/orders/${id}/cancel`, { reason });
+export const adminAssignDelivery = (id, deliveryPartnerId) => 
+  client.post(`/admin/orders/${id}/assign-delivery`, { deliveryPartnerId });
+export const adminIssueRefund = (id, reason, amount) => 
+  client.post(`/admin/orders/${id}/refund`, { reason, amount });
 
 // OFFERS
 export const listOffers = (params) => client.get('/admin/offers', { params });
@@ -74,3 +80,14 @@ export const getTopRestaurants = (limit = 10) =>
   client.get('/admin/reports/top-restaurants', { params: { limit } });
 export const getCuisineBreakdown = () => client.get('/admin/reports/cuisine-breakdown');
 export const getOrdersOverview = () => client.get('/admin/reports/orders-overview');
+
+// USER DETAILS
+export const getUserDetails = (id) => client.get(`/admin/users/${id}`);
+
+// AUDIT LOGS
+export const getAuditLogs = (params) => client.get('/admin/audit-logs', { params });
+
+// BANNERS
+export const getBanners = () => client.get('/admin/banners');
+export const createBanner = (data) => client.post('/admin/banners', data);
+export const deleteBanner = (id) => client.delete(`/admin/banners/${id}`);

@@ -1,8 +1,9 @@
 ﻿import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Download } from 'lucide-react';
 import { listRestaurants } from '../api/admin';
 import { useApi } from '../hooks/useApi';
+import { exportToCSV, formatRestaurantsForExport } from '../utils/csvExport';
 
 const statusBadge = { approved: 'badge-green', pending: 'badge-yellow', rejected: 'badge-red', inactive: 'badge-gray' };
 
@@ -14,11 +15,21 @@ export default function Restaurants() {
   const all = data?.restaurants || [];
   const filtered = tab === 'all' ? all : all.filter((r) => r.status === tab);
 
+  const handleExport = () => {
+    const formatted = formatRestaurantsForExport(filtered);
+    exportToCSV(formatted, 'restaurants');
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-extrabold text-ink">Restaurant Management</h1>
-        <p className="text-sm text-gray-500">Approve, manage, and control restaurant partners</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-extrabold text-ink">Restaurant Management</h1>
+          <p className="text-sm text-gray-500">Approve, manage, and control restaurant partners</p>
+        </div>
+        <button onClick={handleExport} className="btn-primary flex items-center gap-2">
+          <Download size={16} /> Export CSV
+        </button>
       </div>
 
       <div className="flex gap-2">

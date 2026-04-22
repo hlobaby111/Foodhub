@@ -1,7 +1,7 @@
 ﻿import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Store, Bike, Users, Package, CreditCard,
-  Tag, BarChart3, Settings, Shield, AlertTriangle, LogOut, Bell, Search, ChefHat
+  Tag, BarChart3, Settings, Shield, AlertTriangle, LogOut, Bell, Search, ChefHat, Image, FileText
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -13,9 +13,11 @@ const nav = [
   { to: '/orders', icon: Package, label: 'Orders' },
   { to: '/payments', icon: CreditCard, label: 'Payments & Finance' },
   { to: '/offers', icon: Tag, label: 'Offers & Discounts' },
+  { to: '/banners', icon: Image, label: 'Banners' },
   { to: '/reports', icon: BarChart3, label: 'Reports & Analytics' },
   { to: '/settings', icon: Settings, label: 'System Settings' },
   { to: '/roles', icon: Shield, label: 'Roles & Permissions' },
+  { to: '/audit-logs', icon: FileText, label: 'Audit Log' },
   { to: '/emergency', icon: AlertTriangle, label: 'Emergency Controls', danger: true },
 ];
 

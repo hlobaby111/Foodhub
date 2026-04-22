@@ -1,7 +1,9 @@
 ﻿import { useState } from 'react';
-import { Eye, Loader2 } from 'lucide-react';
-import { listOrders } from '../api/admin';
+import { Eye, Loader2, Download } from 'lucide-react';
+import { listOrders, getOrderDetails, adminCancelOrder, adminAssignDelivery, adminIssueRefund } from '../api/admin';
 import { useApi } from '../hooks/useApi';
+import OrderDetailModal from '../components/OrderDetailModal';
+import { exportToCSV, formatOrdersForExport } from '../utils/csvExport';
 
 const statusBadge = {
   pending: 'badge-yellow', confirmed: 'badge-blue', preparing: 'badge-blue',
@@ -11,18 +13,75 @@ const statusBadge = {
 
 export default function Orders() {
   const [tab, setTab] = useState('all');
-  const { data, loading } = useApi(
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const { data, loading, refetch } = useApi(
     () => listOrders({ limit: 100, status: tab === 'all' ? undefined : tab }),
     [tab]
   );
 
   const orders = data?.orders || [];
 
+  const handleViewOrder = async (orderId) => {
+    setLoadingDetail(true);
+    try {
+      const res = await getOrderDetails(orderId);
+      setSelectedOrder(res.data.order);
+    } catch (e) {
+      alert(e.response?.data?.message || 'Failed to load order');
+    } finally {
+      setLoadingDetail(false);
+    }
+  };
+
+  const handleCancelOrder = async (orderId, reason) => {
+    try {
+      await adminCancelOrder(orderId, reason);
+      alert('Order cancelled successfully');
+      setSelectedOrder(null);
+      refetch();
+    } catch (e) {
+      alert(e.response?.data?.message || 'Failed to cancel order');
+    }
+  };
+
+  const handleAssignDelivery = async (orderId, partnerId) => {
+    try {
+      await adminAssignDelivery(orderId, partnerId);
+      alert('Delivery partner assigned successfully');
+      setSelectedOrder(null);
+      refetch();
+    } catch (e) {
+      alert(e.response?.data?.message || 'Failed to assign delivery');
+    }
+  };
+
+  const handleIssueRefund = async (orderId, reason, amount) => {
+    try {
+      await adminIssueRefund(orderId, reason, amount);
+      alert('Refund issued successfully');
+      setSelectedOrder(null);
+      refetch();
+    } catch (e) {
+      alert(e.response?.data?.message || 'Failed to issue refund');
+    }
+  };
+
+  const handleExport = () => {
+    const formatted = formatOrdersForExport(orders);
+    exportToCSV(formatted, 'orders');
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-extrabold text-ink">Order Management</h1>
-        <p className="text-sm text-gray-500">Track all platform orders in real-time</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-extrabold text-ink">Order Management</h1>
+          <p className="text-sm text-gray-500">Track all platform orders in real-time</p>
+        </div>
+        <button onClick={handleExport} className="btn-primary flex items-center gap-2">
+          <Download size={16} /> Export CSV
+        </button>
       </div>
 
       <div className="flex gap-2 flex-wrap">
@@ -60,7 +119,13 @@ export default function Orders() {
                   <td className="px-6 py-4"><span className={`badge ${statusBadge[o.orderStatus] || 'badge-gray'}`}>{o.orderStatus}</span></td>
                   <td className="px-6 py-4 text-gray-500">{new Date(o.createdAt).toLocaleString()}</td>
                   <td className="px-6 py-4">
-                    <button className="p-1.5 hover:bg-gray-100 rounded-lg float-right"><Eye size={16} className="text-gray-600" /></button>
+                    <button 
+                      onClick={() => handleViewOrder(o._id)}
+                      disabled={loadingDetail}
+                      className="p-1.5 hover:bg-gray-100 rounded-lg float-right disabled:opacity-50"
+                    >
+                      <Eye size={16} className="text-gray-600" />
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -69,6 +134,16 @@ export default function Orders() {
           </table>
         )}
       </div>
+
+      {selectedOrder && (
+        <OrderDetailModal
+          order={selectedOrder}
+          onClose={() => setSelectedOrder(null)}
+          onCancelOrder={handleCancelOrder}
+          onAssignDelivery={handleAssignDelivery}
+          onIssueRefund={handleIssueRefund}
+        />
+      )}
     </div>
   );
 }

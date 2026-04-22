@@ -1,9 +1,12 @@
 ﻿import { useState } from 'react';
-import { Eye, Ban, Search, Loader2 } from 'lucide-react';
+import { Eye, Ban, Search, Loader2, Download } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { listUsers, toggleUserStatus } from '../api/admin';
 import { useApi } from '../hooks/useApi';
+import { exportToCSV, formatCustomersForExport } from '../utils/csvExport';
 
 export default function Customers() {
+  const navigate = useNavigate();
   const [q, setQ] = useState('');
   const { data, loading, refetch } = useApi(() => listUsers({ limit: 100 }));
 
@@ -17,11 +20,21 @@ export default function Customers() {
     catch (e) { alert(e.response?.data?.message || 'Failed'); }
   };
 
+  const handleExport = () => {
+    const formatted = formatCustomersForExport(filtered);
+    exportToCSV(formatted, 'customers');
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-extrabold text-ink">Customer Management</h1>
-        <p className="text-sm text-gray-500">View, block, and track customer activity</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-extrabold text-ink">Customer Management</h1>
+          <p className="text-sm text-gray-500">View, block, and track customer activity</p>
+        </div>
+        <button onClick={handleExport} className="btn-primary flex items-center gap-2">
+          <Download size={16} /> Export CSV
+        </button>
       </div>
 
       <div className="relative max-w-md">
@@ -55,7 +68,7 @@ export default function Customers() {
                   <td className="px-6 py-4"><span className={`badge ${c.isActive ? 'badge-green' : 'badge-red'}`}>{c.isActive ? 'active' : 'blocked'}</span></td>
                   <td className="px-6 py-4">
                     <div className="flex justify-end gap-1">
-                      <button className="p-1.5 hover:bg-gray-100 rounded-lg"><Eye size={16} className="text-gray-600" /></button>
+                      <button onClick={() => navigate(`/customers/${c._id}`)} className="p-1.5 hover:bg-gray-100 rounded-lg"><Eye size={16} className="text-gray-600" /></button>
                       <button onClick={() => handleToggle(c._id)} className="p-1.5 hover:bg-red-50 rounded-lg"><Ban size={16} className="text-red-600" /></button>
                     </div>
                   </td>

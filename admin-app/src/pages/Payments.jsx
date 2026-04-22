@@ -1,7 +1,8 @@
 ﻿import { useState } from 'react';
-import { Check, X, Loader2 } from 'lucide-react';
+import { Check, X, Loader2, Download } from 'lucide-react';
 import { listRefunds, decideRefund, listPayouts } from '../api/admin';
 import { useApi } from '../hooks/useApi';
+import { exportToCSV, formatPayoutsForExport } from '../utils/csvExport';
 
 export default function Payments() {
   const [tab, setTab] = useState('refunds');
@@ -14,6 +15,11 @@ export default function Payments() {
     catch (e) { alert(e.response?.data?.message || 'Failed'); }
   };
 
+  const handleExportPayouts = () => {
+    const formatted = formatPayoutsForExport(payoutData?.payouts || []);
+    exportToCSV(formatted, 'payouts');
+  };
+
   const tabs = [
     { k: 'refunds', label: 'Refunds' },
     { k: 'payouts', label: 'Payouts' },
@@ -21,9 +27,16 @@ export default function Payments() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-extrabold text-ink">Payments & Finance</h1>
-        <p className="text-sm text-gray-500">Refunds, payouts, and platform earnings</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-extrabold text-ink">Payments & Finance</h1>
+          <p className="text-sm text-gray-500">Refunds, payouts, and platform earnings</p>
+        </div>
+        {tab === 'payouts' && (
+          <button onClick={handleExportPayouts} className="btn-primary flex items-center gap-2">
+            <Download size={16} /> Export Payouts
+          </button>
+        )}
       </div>
 
       <div className="flex gap-2 border-b border-gray-200">

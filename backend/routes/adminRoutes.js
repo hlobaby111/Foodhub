@@ -15,8 +15,15 @@ const {
   updateRestaurantMenuItem,
   deleteRestaurantMenuItem,
   getAllOrders,
+  getOrderDetails,
+  adminCancelOrder,
+  adminAssignDelivery,
+  adminIssueRefund,
   getBanners,
-  upsertBanner
+  upsertBanner,
+  deleteBanner,
+  getAuditLogs,
+  getUserDetails
 } = require('../controllers/adminController');
 const { authMiddleware, roleMiddleware } = require('../middleware/auth');
 
@@ -41,6 +48,13 @@ router.post('/restaurants/:id/menu', createRestaurantMenuItem);
 router.put('/restaurants/:id/menu/:menuItemId', updateRestaurantMenuItem);
 router.delete('/restaurants/:id/menu/:menuItemId', deleteRestaurantMenuItem);
 router.get('/orders', getAllOrders);
+router.get('/orders/:id', getOrderDetails);
+router.post('/orders/:id/cancel', adminCancelOrder);
+router.post('/orders/:id/assign-delivery', adminAssignDelivery);
+router.post('/orders/:id/refund', adminIssueRefund);
+router.get('/users/:id', getUserDetails);
+router.get('/audit-logs', getAuditLogs);
 router.post('/banners', upsertBanner);
+router.delete('/banners/:id', deleteBanner);
 
 module.exports = router;
