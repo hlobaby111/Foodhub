@@ -6,6 +6,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog';
 import { toast } from 'sonner';
+import logger from '../utils/logger';
 import {
   ArrowLeft, MapPin, Clock, Phone, Check, ChefHat, Truck,
   Package, XCircle, Star, Store, AlertTriangle, Navigation2, Utensils
@@ -31,8 +32,6 @@ const OrderTracking = () => {
   const [cancelling, setCancelling] = useState(false);
   const [pollingActive, setPollingActive] = useState(true);
   const [deliveryLocation, setDeliveryLocation] = useState(null);
-
-import logger from '../utils/logger';
 
   // Fixed: Wrap fetchOrder in useCallback to stabilize reference
   const fetchOrder = useCallback(async () => {

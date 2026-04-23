@@ -2,6 +2,23 @@ import React, { useEffect, useState } from 'react';
 import { MapPin, Navigation, Plus, X, Loader } from 'lucide-react';
 import api from '../utils/api';
 
+const getGeolocationErrorMessage = (error) => {
+  if (!error || typeof error.code !== 'number') {
+    return 'Unable to retrieve your location. Please add address manually.';
+  }
+
+  switch (error.code) {
+    case 1:
+      return 'Location permission was denied. Allow location in your browser and try again.';
+    case 2:
+      return 'Location is unavailable on this device right now. Please try again or add address manually.';
+    case 3:
+      return 'Location request timed out. Please try again in an open area or with better network/GPS.';
+    default:
+      return 'Unable to retrieve your location. Please add address manually.';
+  }
+};
+
 const formatAddress = (address) => {
   const parts = [address.street, address.city, address.state, address.pincode].filter(Boolean);
   return parts.join(', ');
@@ -41,6 +58,12 @@ const LocationSelector = ({ isOpen, onClose, onLocationSelect, onSelectAddress }
         return;
       }
 
+      if (!window.isSecureContext) {
+        alert('Current location works only on HTTPS or localhost. Please open the app on localhost or a secure URL.');
+        setLoading(false);
+        return;
+      }
+
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           const { latitude, longitude } = position.coords;
@@ -69,8 +92,13 @@ const LocationSelector = ({ isOpen, onClose, onLocationSelect, onSelectAddress }
         },
         (error) => {
           console.error('Error getting location:', error);
-          alert('Unable to retrieve your location. Please add address manually.');
+          alert(getGeolocationErrorMessage(error));
           setLoading(false);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 60000,
         }
       );
     } catch (error) {

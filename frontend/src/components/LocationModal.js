@@ -1,12 +1,41 @@
 import React, { useState } from 'react';
 import { X, Navigation, Plus, MapPin, Home, Briefcase, Loader } from 'lucide-react';
 
+const getGeolocationErrorMessage = (error) => {
+  if (!error || typeof error.code !== 'number') {
+    return 'Unable to get location. Please enable location services.';
+  }
+
+  switch (error.code) {
+    case 1:
+      return 'Location permission was denied. Allow location in your browser and try again.';
+    case 2:
+      return 'Location is unavailable on this device right now. Please try again or enter address manually.';
+    case 3:
+      return 'Location request timed out. Please try again in an open area or with better network/GPS.';
+    default:
+      return 'Unable to get location. Please enable location services.';
+  }
+};
+
 const LocationModal = ({ isOpen, onClose, onLocationSelect }) => {
   const [loading, setLoading] = useState(false);
 
   const handleCurrentLocation = async () => {
     setLoading(true);
     try {
+      if (!navigator.geolocation) {
+        alert('Geolocation is not supported by your browser. Please enter address manually.');
+        setLoading(false);
+        return;
+      }
+
+      if (!window.isSecureContext) {
+        alert('Current location works only on HTTPS or localhost. Please open the app on localhost or a secure URL.');
+        setLoading(false);
+        return;
+      }
+
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const location = {
@@ -18,9 +47,14 @@ const LocationModal = ({ isOpen, onClose, onLocationSelect }) => {
           onLocationSelect(location);
           setLoading(false);
         },
-        () => {
-          alert('Unable to get location. Please enable location services.');
+        (error) => {
+          alert(getGeolocationErrorMessage(error));
           setLoading(false);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 60000,
         }
       );
     } catch (error) {

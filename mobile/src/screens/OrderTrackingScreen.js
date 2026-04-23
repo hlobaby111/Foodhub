@@ -245,7 +245,7 @@ export default function OrderTrackingScreen({ route, navigation }) {
           <View style={styles.addressCard}>
             <Icon name="map-marker" size={24} color={theme.colors.primary} />
             <Text style={styles.addressText}>
-              {order.deliveryAddress?.street}, {order.deliveryAddress?.city},{' '}
+              {order.deliveryAddress?.street}, {order.deliveryAddress?.city}, 
               {order.deliveryAddress?.state} {order.deliveryAddress?.zipCode}
             </Text>
           </View>

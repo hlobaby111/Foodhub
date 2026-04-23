@@ -22,7 +22,7 @@ export default function CheckoutScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [placing, setPlacing] = useState(false);
   const [deliveryNotes, setDeliveryNotes] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('cod');
+  const [paymentMethod, setPaymentMethod] = useState('cash');
 
   // New address form
   const [showAddAddress, setShowAddAddress] = useState(false);
@@ -229,12 +229,12 @@ export default function CheckoutScreen({ navigation }) {
           
           <TouchableOpacity
             style={styles.paymentOption}
-            onPress={() => setPaymentMethod('cod')}
+            onPress={() => setPaymentMethod('cash')}
           >
             <RadioButton
-              value="cod"
-              status={paymentMethod === 'cod' ? 'checked' : 'unchecked'}
-              onPress={() => setPaymentMethod('cod')}
+              value="cash"
+              status={paymentMethod === 'cash' ? 'checked' : 'unchecked'}
+              onPress={() => setPaymentMethod('cash')}
               color={theme.colors.primary}
             />
             <Icon name="cash" size={24} color={theme.colors.text} />

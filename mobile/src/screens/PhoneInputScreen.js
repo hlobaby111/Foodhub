@@ -101,8 +101,8 @@ export default function PhoneInputScreen({ navigation }) {
           </Button>
 
           <Text style={styles.termsText}>
-            By continuing, you agree to our{' '}
-            <Text style={styles.link}>Terms of Service</Text> and{' '}
+            By continuing, you agree to our 
+            <Text style={styles.link}>Terms of Service</Text> and 
             <Text style={styles.link}>Privacy Policy</Text>
           </Text>
         </View>

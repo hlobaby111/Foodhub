@@ -10,6 +10,23 @@ import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 're
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 
+const getGeolocationErrorMessage = (error) => {
+  if (!error || typeof error.code !== 'number') {
+    return 'Could not access your location. Please check browser location permission.';
+  }
+
+  switch (error.code) {
+    case 1:
+      return 'Location permission was denied. Allow location in your browser and try again.';
+    case 2:
+      return 'Location is unavailable on this device right now. Please try again or enter address manually.';
+    case 3:
+      return 'Location request timed out. Please try again in an open area or with better network/GPS.';
+    default:
+      return 'Could not access your location. Please check browser location permission.';
+  }
+};
+
 // Fix default marker icons
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -86,9 +103,23 @@ const AddressSelector = ({ isOpen, onClose, onSelectAddress, currentLocation = n
 
   const getCurrentLocation = async () => {
     try {
+      if (!navigator.geolocation) {
+        alert('Geolocation is not supported by your browser. Please enter address manually.');
+        return;
+      }
+
+      if (!window.isSecureContext) {
+        alert('Current location works only on HTTPS or localhost. Please open the app on localhost or a secure URL.');
+        return;
+      }
+
       setGettingLocation(true);
       const position = await new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject);
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 60000,
+        });
       });
 
       const { latitude, longitude } = position.coords;
@@ -116,7 +147,7 @@ const AddressSelector = ({ isOpen, onClose, onSelectAddress, currentLocation = n
       }
     } catch (error) {
       console.error('Error getting location:', error);
-      alert('Could not access your location. Please check permissions.');
+      alert(getGeolocationErrorMessage(error));
     } finally {
       setGettingLocation(false);
     }

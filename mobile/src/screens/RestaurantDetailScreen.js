@@ -135,7 +135,7 @@ const RestaurantDetailScreen = () => {
               <View style={styles.ratingBadge}>
                 <Icon name="star" size={16} color={theme.colors.green[600]} />
                 <Text style={styles.ratingText}>
-                  {restaurant.rating?.toFixed(1)}{' '}
+                  {restaurant.rating?.toFixed(1)} 
                   <Text style={styles.ratingCount}>({restaurant.totalReviews})</Text>
                 </Text>
               </View>

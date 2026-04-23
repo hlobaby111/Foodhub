@@ -128,7 +128,11 @@ const CartScreen = () => {
           razorpayPaymentId: 'pay_test_' + Date.now(),
           razorpayOrderId: response.data.razorpayOrderId,
           razorpaySignature: 'test_signature'
-        }).catch(() => {});
+        });
+      }
+
+      if (paymentMethod === 'online' && !response.data.razorpayOrderId) {
+        throw new Error('Online payment could not be initialized. Please try again or use Cash on Delivery.');
       }
 
       clearCart();
