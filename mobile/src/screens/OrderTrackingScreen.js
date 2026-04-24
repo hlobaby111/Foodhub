@@ -50,7 +50,7 @@ export default function OrderTrackingScreen({ route, navigation }) {
 
     newSocket.on('order_update', (updatedOrder) => {
       console.log('Order update received:', updatedOrder);
-      setOrder(updatedOrder);
+      setOrder(updatedOrder?.order || updatedOrder);
     });
 
     newSocket.on('disconnect', () => {
@@ -82,7 +82,7 @@ export default function OrderTrackingScreen({ route, navigation }) {
     try {
       setCancelling(true);
       await api.put(`/api/orders/${orderId}/cancel`, {
-        cancellationReason: cancelReason.trim(),
+        reason: cancelReason.trim(),
       });
       
       setShowCancelDialog(false);
@@ -98,25 +98,25 @@ export default function OrderTrackingScreen({ route, navigation }) {
 
   const getStatusSteps = () => {
     return [
-      { status: 'PLACED', label: 'Order Placed', icon: 'check-circle' },
-      { status: 'ACCEPTED', label: 'Accepted', icon: 'check-circle' },
-      { status: 'PREPARING', label: 'Preparing', icon: 'chef-hat' },
-      { status: 'READY', label: 'Ready', icon: 'check-circle' },
-      { status: 'PICKED_UP', label: 'Picked Up', icon: 'motorbike' },
-      { status: 'OUT_FOR_DELIVERY', label: 'On the Way', icon: 'map-marker-path' },
-      { status: 'DELIVERED', label: 'Delivered', icon: 'check-circle' },
+      { status: 'placed', label: 'Order Placed', icon: 'check-circle' },
+      { status: 'accepted', label: 'Accepted', icon: 'check-circle' },
+      { status: 'preparing', label: 'Preparing', icon: 'chef-hat' },
+      { status: 'ready', label: 'Ready', icon: 'check-circle' },
+      { status: 'picked_up', label: 'Picked Up', icon: 'motorbike' },
+      { status: 'out_for_delivery', label: 'On the Way', icon: 'map-marker-path' },
+      { status: 'delivered', label: 'Delivered', icon: 'check-circle' },
     ];
   };
 
   const getCurrentStepIndex = () => {
     if (!order) return -1;
     const steps = getStatusSteps();
-    return steps.findIndex((step) => step.status === order.status);
+    return steps.findIndex((step) => step.status === order.orderStatus);
   };
 
   const canCancelOrder = () => {
     if (!order) return false;
-    return !['DELIVERED', 'CANCELLED', 'OUT_FOR_DELIVERY'].includes(order.status);
+    return !['delivered', 'cancelled', 'out_for_delivery'].includes(order.orderStatus);
   };
 
   if (loading) {
@@ -144,12 +144,12 @@ export default function OrderTrackingScreen({ route, navigation }) {
         {/* Order Status Header */}
         <View style={styles.statusHeader}>
           <Icon
-            name={order.status === 'DELIVERED' ? 'check-circle' : 'clock-outline'}
+            name={order.orderStatus === 'delivered' ? 'check-circle' : 'clock-outline'}
             size={48}
-            color={order.status === 'DELIVERED' ? theme.colors.green[600] : theme.colors.primary}
+            color={order.orderStatus === 'delivered' ? theme.colors.green[600] : theme.colors.primary}
           />
           <Text style={styles.statusTitle}>
-            {ORDER_STATUS_LABELS[order.status] || order.status}
+            {ORDER_STATUS_LABELS[order.orderStatus] || order.orderStatus}
           </Text>
           <Text style={styles.statusSubtitle}>
             Order ID: #{order._id?.slice(-6)}
@@ -157,7 +157,7 @@ export default function OrderTrackingScreen({ route, navigation }) {
         </View>
 
         {/* Status Timeline */}
-        {order.status !== 'CANCELLED' && (
+        {order.orderStatus !== 'cancelled' && (
           <View style={styles.timeline}>
             {statusSteps.map((step, index) => {
               const isCompleted = index <= currentStepIndex;
@@ -246,7 +246,7 @@ export default function OrderTrackingScreen({ route, navigation }) {
             <Icon name="map-marker" size={24} color={theme.colors.primary} />
             <Text style={styles.addressText}>
               {order.deliveryAddress?.street}, {order.deliveryAddress?.city}, 
-              {order.deliveryAddress?.state} {order.deliveryAddress?.zipCode}
+              {order.deliveryAddress?.state} {order.deliveryAddress?.pincode || order.deliveryAddress?.zipCode}
             </Text>
           </View>
         </View>

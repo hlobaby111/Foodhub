@@ -17,7 +17,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useCart } from '../contexts/CartContext';
 import api from '../services/api';
 import { theme } from '../utils/theme';
-import LocationBottomSheet from '../components/LocationBottomSheet';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
 
@@ -144,7 +144,13 @@ const HomeScreen = () => {
   const [banners, setBanners] = useState([]);
   const [currentBanner, setCurrentBanner] = useState(0);
   const [userLocation, setUserLocation] = useState('Mumbai, Maharashtra');
-  const [showLocationSheet, setShowLocationSheet] = useState(false);
+
+  // Restore last location from AsyncStorage on mount
+  useEffect(() => {
+    AsyncStorage.getItem('userLastLocation').then((saved) => {
+      if (saved) setUserLocation(saved);
+    }).catch(() => {});
+  }, []);
 
   const searchTimeout = useRef(null);
 
@@ -211,11 +217,18 @@ const HomeScreen = () => {
   }, []);
 
   const handleLocationSelect = (location) => {
-    const label = location.city ? `${location.address}, ${location.city}` : location.address;
+    const label = location?.address || [location?.street, location?.city, location?.state].filter(Boolean).join(', ');
     if (label) {
       setUserLocation(label);
+      // Persist locally
+      AsyncStorage.setItem('userLastLocation', label).catch(() => {});
+      // Persist to backend asynchronously (best-effort)
+      api.put('/api/addresses/location/current', {
+        lat: location.lat,
+        lng: location.lng,
+        label,
+      }).catch(() => {});
     }
-    setShowLocationSheet(false);
   };
 
   const locations = ['Bandra, Mumbai', 'Andheri, Mumbai', 'Juhu, Mumbai', 'Colaba, Mumbai'];
@@ -232,7 +245,7 @@ const HomeScreen = () => {
         <View style={styles.locationBar}>
           <TouchableOpacity
             style={styles.locationButton}
-            onPress={() => setShowLocationSheet(true)}
+            onPress={() => navigation.navigate('LocationSelector', { onSelectAddress: handleLocationSelect })}
           >
             <Icon name="navigation" size={20} color={theme.colors.primary} />
             <View style={styles.locationTextContainer}>
@@ -532,11 +545,6 @@ const HomeScreen = () => {
         </View>
       )}
 
-      <LocationBottomSheet
-        visible={showLocationSheet}
-        onClose={() => setShowLocationSheet(false)}
-        onLocationSelect={handleLocationSelect}
-      />
     </View>
   );
 };

@@ -166,12 +166,13 @@ const AddressSelector = ({ isOpen, onClose, onSelectAddress, currentLocation = n
     onClose();
   };
 
-  const handleSelectManualAddress = () => {
+  const handleSelectManualAddress = async () => {
     if (!manualAddress.street || !manualAddress.pincode) {
       alert('Please enter street and pincode');
       return;
     }
-    onSelectAddress({
+
+    const payload = {
       street: manualAddress.street,
       city: manualAddress.city,
       state: manualAddress.state,
@@ -179,16 +180,25 @@ const AddressSelector = ({ isOpen, onClose, onSelectAddress, currentLocation = n
       lat: manualAddress.lat,
       lng: manualAddress.lng,
       label: 'Current Location',
-    });
+    };
+
+    try {
+      await api.post('/api/addresses', payload);
+    } catch (error) {
+      console.error('Failed to save current location address:', error);
+    }
+
+    onSelectAddress(payload);
     onClose();
   };
 
-  const handleSelectMapAddress = () => {
+  const handleSelectMapAddress = async () => {
     if (!mapAddress.street) {
       alert('Please enter address details');
       return;
     }
-    onSelectAddress({
+
+    const payload = {
       street: mapAddress.street,
       city: mapAddress.city,
       state: mapAddress.state,
@@ -196,7 +206,15 @@ const AddressSelector = ({ isOpen, onClose, onSelectAddress, currentLocation = n
       lat: mapAddress.lat,
       lng: mapAddress.lng,
       label: 'Map Location',
-    });
+    };
+
+    try {
+      await api.post('/api/addresses', payload);
+    } catch (error) {
+      console.error('Failed to save map address:', error);
+    }
+
+    onSelectAddress(payload);
     onClose();
   };
 
@@ -208,7 +226,8 @@ const AddressSelector = ({ isOpen, onClose, onSelectAddress, currentLocation = n
     try {
       setLoading(true);
       await api.post('/api/addresses', newAddress);
-      fetchSavedAddresses();
+      onSelectAddress(newAddress);
+      await fetchSavedAddresses();
       setNewAddress({
         label: 'Home',
         street: '',
@@ -218,7 +237,7 @@ const AddressSelector = ({ isOpen, onClose, onSelectAddress, currentLocation = n
         lat: currentLocation?.lat || 19.0760,
         lng: currentLocation?.lng || 72.8777,
       });
-      setActiveTab('saved');
+      onClose();
     } catch (error) {
       console.error('Failed to add address:', error);
       alert('Failed to add address');

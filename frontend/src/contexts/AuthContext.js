@@ -58,6 +58,10 @@ export const AuthProvider = ({ children }) => {
         const response = await api.get('/api/otp-auth/me', { skipAuthRefresh: true });
         const userData = response.data?.user || JSON.parse(storedUser);
         localStorage.setItem(STORAGE_KEYS.user, JSON.stringify(userData));
+        // Restore last location label from backend if local storage doesn't have it yet
+        if (userData.lastLocationLabel && !localStorage.getItem('userLastLocation')) {
+          localStorage.setItem('userLastLocation', userData.lastLocationLabel);
+        }
         setUser(userData);
       } else {
         setUser(null);

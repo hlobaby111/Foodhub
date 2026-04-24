@@ -22,6 +22,7 @@ import OrdersScreen from '../screens/OrdersScreen';
 import OrderTrackingScreen from '../screens/OrderTrackingScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import LocationSelectorScreen from '../screens/LocationSelectorScreen';
+import AddressSelectorScreen from '../screens/AddressSelectorScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -65,6 +66,10 @@ function HomeStack() {
       <Stack.Screen
         name="LocationSelector"
         component={LocationSelectorScreen}
+      />
+      <Stack.Screen
+        name="AddressSelector"
+        component={AddressSelectorScreen}
       />
       <Stack.Screen
         name="Checkout"

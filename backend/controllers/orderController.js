@@ -73,6 +73,18 @@ const createOrder = async (req, res, next) => {
     }
     
     await order.save();
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`user_${req.user._id.toString()}`).emit('order_created', { order });
+      io.to(`restaurant_${restaurantId}`).emit('order_created', { order });
+      io.to(`order_${order._id.toString()}`).emit('order_update', {
+        orderId: order._id.toString(),
+        status: order.orderStatus,
+        order,
+        timestamp: new Date(),
+      });
+    }
     
     res.status(201).json({
       message: 'Order created successfully',
@@ -119,6 +131,18 @@ const verifyPayment = async (req, res, next) => {
       order.statusHistory.push({ status: 'accepted' });
       
       await order.save();
+
+      const io = req.app.get('io');
+      if (io) {
+        io.to(`order_${order._id.toString()}`).emit('order_update', {
+          orderId: order._id.toString(),
+          status: order.orderStatus,
+          order,
+          timestamp: new Date(),
+        });
+        io.to(`user_${order.customer.toString()}`).emit('order_update', { order });
+        io.to(`restaurant_${order.restaurant.toString()}`).emit('order_update', { order });
+      }
       
       res.json({ message: 'Payment verified successfully', order });
     } else {
@@ -210,8 +234,11 @@ const updateOrderStatus = async (req, res, next) => {
       io.to(`order_${order._id}`).emit('order_update', {
         orderId: order._id.toString(),
         status,
+        order,
         timestamp: new Date()
       });
+      io.to(`user_${order.customer.toString()}`).emit('order_update', { order });
+      io.to(`restaurant_${order.restaurant._id.toString()}`).emit('order_update', { order });
     }
     
     res.json({ message: 'Order status updated successfully', order });
@@ -222,9 +249,9 @@ const updateOrderStatus = async (req, res, next) => {
 
 const cancelOrder = async (req, res, next) => {
   try {
-    const { reason } = req.body;
+    const reason = (req.body?.reason || req.body?.cancellationReason || '').trim();
 
-    if (!reason || reason.trim().length < 10) {
+    if (!reason || reason.length < 10) {
       return res.status(400).json({ message: 'Cancellation reason must be at least 10 characters' });
     }
 
@@ -263,6 +290,18 @@ const cancelOrder = async (req, res, next) => {
     });
 
     await order.save();
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`order_${order._id.toString()}`).emit('order_update', {
+        orderId: order._id.toString(),
+        status: order.orderStatus,
+        order,
+        timestamp: new Date(),
+      });
+      io.to(`user_${order.customer.toString()}`).emit('order_update', { order });
+      io.to(`restaurant_${order.restaurant.toString()}`).emit('order_update', { order });
+    }
 
     res.json({ message: 'Order cancelled successfully', order });
   } catch (error) {

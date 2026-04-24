@@ -11,6 +11,7 @@ const redis = require('./config/redis');
 const { initStorage } = require('./config/storage');
 const errorHandler = require('./middleware/errorHandler');
 const { apiLimiter } = require('./middleware/rateLimiter');
+const Restaurant = require('./models/Restaurant');
 
 // Routes
 const authRoutes = require('./routes/authRoutes');
@@ -63,8 +64,23 @@ io.use(async (socket, next) => {
   }
 });
 
-io.on('connection', (socket) => {
+io.on('connection', async (socket) => {
   console.log('Client connected:', socket.id);
+
+  // User-specific room for personal order updates.
+  socket.join(`user_${socket.userId}`);
+
+  // Auto-join all owned restaurant rooms so owners get new orders instantly.
+  if (socket.userRole === 'restaurant_owner') {
+    try {
+      const ownedRestaurants = await Restaurant.find({ owner: socket.userId }).select('_id');
+      ownedRestaurants.forEach((restaurant) => {
+        socket.join(`restaurant_${restaurant._id.toString()}`);
+      });
+    } catch (error) {
+      console.warn('Failed to join restaurant rooms:', error.message);
+    }
+  }
 
   socket.on('join_order', (orderId) => {
     socket.join(`order_${orderId}`);
@@ -154,7 +170,6 @@ app.get('/api/banners', async (req, res) => {
 });
 
 // Restaurant settings update (owner)
-const Restaurant = require('./models/Restaurant');
 const { authMiddleware } = require('./middleware/auth');
 
 app.put('/api/restaurants/:id/settings', authMiddleware, async (req, res) => {

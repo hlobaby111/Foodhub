@@ -8,7 +8,9 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { RadioGroup, RadioGroupItem } from '../components/ui/radio-group';
 import LocationSelector from '../components/LocationSelector';
+import AddressSelector from '../components/AddressSelector';
 import { toast } from 'sonner';
+import { openRazorpay } from '../utils/razorpay';
 import { CreditCard, Banknote, ArrowLeft, Check, MapPin } from 'lucide-react';
 
 const Checkout = () => {
@@ -16,6 +18,7 @@ const Checkout = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [showLocationSelector, setShowLocationSelector] = useState(false);
+  const [showAddressSelector, setShowAddressSelector] = useState(false);
 
   const [address, setAddress] = useState({
     street: selectedAddress?.street || user?.address?.street || '',
@@ -87,13 +90,22 @@ const Checkout = () => {
       const response = await api.post('/api/orders', orderData);
 
       if (paymentMethod === 'online' && response.data.razorpayOrderId) {
-        toast.info('Razorpay test mode: Payment simulated successfully');
-        await api.post('/api/orders/verify-payment', {
+        await openRazorpay({
           orderId: response.data.order._id,
-          razorpayPaymentId: 'pay_test_' + Date.now(),
           razorpayOrderId: response.data.razorpayOrderId,
-          razorpaySignature: 'test_signature'
-        }).catch(() => {});
+          razorpayKeyId: response.data.razorpayKeyId,
+          amount: totalAmount,
+          customerPhone: phone,
+          onSuccess: async () => {
+            clearCart();
+            toast.success('Payment successful! Order placed.');
+            navigate('/orders', { state: { newOrder: response.data.order } });
+          },
+          onFailure: () => {
+            toast.error('Payment failed or was cancelled.');
+          },
+        });
+        return; // navigation handled inside onSuccess
       }
 
       clearCart();
@@ -217,6 +229,14 @@ const Checkout = () => {
         isOpen={showLocationSelector}
         onClose={() => setShowLocationSelector(false)}
         onSelectAddress={handleSelectAddress}
+        onAddManualAddress={() => setShowAddressSelector(true)}
+      />
+
+      <AddressSelector
+        isOpen={showAddressSelector}
+        onClose={() => setShowAddressSelector(false)}
+        onSelectAddress={handleSelectAddress}
+        currentLocation={{ lat: address.lat, lng: address.lng }}
       />
     </div>
   );

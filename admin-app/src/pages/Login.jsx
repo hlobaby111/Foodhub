@@ -24,7 +24,12 @@ export default function Login() {
       if (res.data.otp) setDevOtp(res.data.otp);
       setStep('otp');
     } catch (e) {
-      setErr(e.response?.data?.message || 'Failed to send OTP');
+      const waitSeconds = e.response?.data?.waitSeconds;
+      if (e.response?.status === 429) {
+        setErr(`Too many requests. Try again after ${waitSeconds || 30} seconds.`);
+      } else {
+        setErr(e.response?.data?.message || 'Failed to send OTP');
+      }
     } finally { setLoading(false); }
   };
 

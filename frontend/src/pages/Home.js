@@ -7,6 +7,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
 import LocationModal from '../components/LocationModal';
+import AddressSelector from '../components/AddressSelector';
 import {
   Search, Star, Clock, MapPin, ChevronLeft, ChevronRight,
   Navigation2, Check, X, ShoppingCart, Leaf, Plus
@@ -97,8 +98,11 @@ const Home = () => {
   const [pagination, setPagination] = useState({ total: 0, pages: 1 });
   const [banners, setBanners] = useState([]);
   const [currentBanner, setCurrentBanner] = useState(0);
-  const [userLocation, setUserLocation] = useState('Mumbai, Maharashtra');
+  const [userLocation, setUserLocation] = useState(
+    () => localStorage.getItem('userLastLocation') || 'Mumbai, Maharashtra'
+  );
   const [showLocationModal, setShowLocationModal] = useState(false);
+  const [showAddressSelector, setShowAddressSelector] = useState(false);
   const navigate = useNavigate();
   const searchTimeout = useRef(null);
 
@@ -152,11 +156,19 @@ const Home = () => {
   };
 
   const handleLocationSelect = (location) => {
-    const label = location.city ? `${location.address}, ${location.city}` : location.address;
+    const label = location?.address || [location?.street, location?.city, location?.state].filter(Boolean).join(', ');
     if (label) {
       setUserLocation(label);
+      localStorage.setItem('userLastLocation', label);
+      // Persist to backend asynchronously (best-effort)
+      api.put('/api/addresses/location/current', {
+        lat: location.lat,
+        lng: location.lng,
+        label,
+      }).catch(() => {});
     }
     setShowLocationModal(false);
+    setShowAddressSelector(false);
   };
 
   const locations = ['Bandra, Mumbai', 'Andheri, Mumbai', 'Juhu, Mumbai', 'Colaba, Mumbai'];
@@ -181,6 +193,13 @@ const Home = () => {
         isOpen={showLocationModal}
         onClose={() => setShowLocationModal(false)}
         onLocationSelect={handleLocationSelect}
+        onAddManualAddress={() => setShowAddressSelector(true)}
+      />
+
+      <AddressSelector
+        isOpen={showAddressSelector}
+        onClose={() => setShowAddressSelector(false)}
+        onSelectAddress={handleLocationSelect}
       />
 
       {/* Search */}

@@ -3,6 +3,7 @@ import { StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Provider as PaperProvider, MD3LightTheme } from 'react-native-paper';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { CartProvider } from './src/contexts/CartContext';
 import AppNavigator from './src/navigation/AppNavigator';
@@ -25,14 +26,18 @@ const paperTheme = {
 export default function App() {
   return (
     <GestureHandlerRootView style={styles.container}>
-      <PaperProvider theme={paperTheme}>
-        <AuthProvider>
-          <CartProvider>
-            <StatusBar style="light" backgroundColor={theme.colors.primary} />
-            <AppNavigator />
-          </CartProvider>
-        </AuthProvider>
-      </PaperProvider>
+      <SafeAreaProvider>
+        <PaperProvider theme={paperTheme}>
+          <AuthProvider>
+            <CartProvider>
+              <StatusBar style="light" backgroundColor={theme.colors.primary} translucent={false} />
+              <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right', 'bottom']}>
+                <AppNavigator />
+              </SafeAreaView>
+            </CartProvider>
+          </AuthProvider>
+        </PaperProvider>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
@@ -40,5 +45,9 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  safeArea: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
   },
 });

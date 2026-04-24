@@ -24,12 +24,106 @@ if (Platform.OS !== 'web') {
   }
 }
 
+const reverseGeocode = async (latitude, longitude) => {
+  // Prefer native reverse geocode on device.
+  if (Platform.OS !== 'web' && Location?.reverseGeocodeAsync) {
+    try {
+      const nativeResult = await Location.reverseGeocodeAsync({
+        latitude,
+        longitude,
+      });
+
+      if (Array.isArray(nativeResult) && nativeResult[0]) {
+        const entry = nativeResult[0];
+        const street = [entry.name, entry.street].filter(Boolean).join(' ').trim();
+        const city = entry.city || entry.subregion || entry.district || '';
+        const state = entry.region || '';
+        const pincode = entry.postalCode || '';
+        const address = [street, city, state, pincode].filter(Boolean).join(', ');
+        if (address) {
+          return { street, city, state, pincode, address };
+        }
+      }
+    } catch (error) {
+      console.warn('Native reverse geocoding failed:', error?.message || error);
+    }
+  }
+
+  // Fallback to Nominatim.
+  try {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`,
+      {
+        headers: {
+          Accept: 'application/json',
+          'Accept-Language': 'en',
+          'User-Agent': 'FoodHubMobile/1.0',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Reverse geocode HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    const addr = data?.address || {};
+    const street = [addr.house_number, addr.road || addr.neighbourhood || addr.suburb]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+    const city = addr.city || addr.town || addr.village || addr.county || '';
+    const state = addr.state || '';
+    const pincode = addr.postcode || '';
+    const address = data?.display_name || [street, city, state, pincode].filter(Boolean).join(', ');
+
+    if (address) {
+      return { street, city, state, pincode, address };
+    }
+  } catch (error) {
+    console.warn('Nominatim reverse geocoding failed:', error?.message || error);
+  }
+
+  const fallbackAddress = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+  return {
+    street: fallbackAddress,
+    city: '',
+    state: '',
+    pincode: '',
+    address: fallbackAddress,
+  };
+};
+
 const AddressSelectorScreen = ({ navigation, route }) => {
   const { onSelectAddress } = route.params || {};
   const [activeTab, setActiveTab] = useState('saved');
   const [savedAddresses, setSavedAddresses] = useState([]);
   const [loading, setLoading] = useState(false);
   const [gettingLocation, setGettingLocation] = useState(false);
+
+  const resolveCurrentPosition = async () => {
+    if (Platform.OS === 'web') {
+      if (!navigator?.geolocation) throw new Error('Location API not available');
+      return new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => resolve(pos),
+          (err) => reject(err),
+          { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+        );
+      });
+    }
+
+    if (!Location || !Location.requestForegroundPermissionsAsync) {
+      throw new Error('Location API not available');
+    }
+
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      throw new Error('Location permission denied');
+    }
+
+    return Location.getCurrentPositionAsync({});
+  };
 
   // Manual entry state
   const [manualAddress, setManualAddress] = useState({
@@ -71,21 +165,8 @@ const AddressSelectorScreen = ({ navigation, route }) => {
 
   const getCurrentLocation = async () => {
     try {
-      // Check if Location module is available (native only)
-      if (!Location || !Location.requestForegroundPermissionsAsync) {
-        Alert.alert('Error', 'Location services not available on this platform');
-        return;
-      }
-
       setGettingLocation(true);
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      
-      if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Permission to access location was denied');
-        return;
-      }
-
-      const location = await Location.getCurrentPositionAsync({});
+      const location = await resolveCurrentPosition();
       const { latitude, longitude } = location.coords;
 
       setManualAddress(prev => ({
@@ -94,24 +175,14 @@ const AddressSelectorScreen = ({ navigation, route }) => {
         lng: longitude,
       }));
 
-      // Try to get address from coordinates
-      try {
-        const response = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
-        );
-        const data = await response.json();
-        if (data.address) {
-          const addr = {
-            street: data.address.road || data.address.house_number || '',
-            city: data.address.city || data.address.town || '',
-            state: data.address.state || '',
-            pincode: data.address.postcode || '',
-          };
-          setManualAddress(prev => ({ ...prev, ...addr }));
-        }
-      } catch (e) {
-        console.log('Reverse geocoding failed');
-      }
+      const geocoded = await reverseGeocode(latitude, longitude);
+      setManualAddress(prev => ({
+        ...prev,
+        street: geocoded.street || prev.street,
+        city: geocoded.city || prev.city,
+        state: geocoded.state || prev.state,
+        pincode: geocoded.pincode || prev.pincode,
+      }));
     } catch (error) {
       console.error('Error getting location:', error);
       Alert.alert('Error', 'Could not access your location');
@@ -132,8 +203,7 @@ const AddressSelectorScreen = ({ navigation, route }) => {
       Alert.alert('Error', 'Please enter street and pincode');
       return;
     }
-    if (onSelectAddress) {
-      onSelectAddress({
+    const payload = {
         street: manualAddress.street,
         city: manualAddress.city,
         state: manualAddress.state,
@@ -141,9 +211,18 @@ const AddressSelectorScreen = ({ navigation, route }) => {
         lat: manualAddress.lat,
         lng: manualAddress.lng,
         label: 'Current Location',
-      });
-    }
-    navigation.goBack();
+      };
+
+    const finalize = () => {
+      if (onSelectAddress) onSelectAddress(payload);
+      navigation.goBack();
+    };
+
+    api.post('/api/addresses', payload)
+      .catch((error) => {
+        console.error('Failed to persist selected address:', error);
+      })
+      .finally(finalize);
   };
 
   const handleAddNewAddress = async () => {
@@ -156,6 +235,9 @@ const AddressSelectorScreen = ({ navigation, route }) => {
       await api.post('/api/addresses', newAddress);
       fetchSavedAddresses();
       Alert.alert('Success', 'Address added successfully!');
+      if (onSelectAddress) {
+        onSelectAddress(newAddress);
+      }
       setNewAddress({
         label: 'Home',
         street: '',
@@ -165,7 +247,7 @@ const AddressSelectorScreen = ({ navigation, route }) => {
         lat: 19.0760,
         lng: 72.8777,
       });
-      setActiveTab('saved');
+      navigation.goBack();
     } catch (error) {
       console.error('Failed to add address:', error);
       Alert.alert('Error', 'Failed to add address');

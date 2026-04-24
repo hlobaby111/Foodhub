@@ -29,6 +29,13 @@ client.interceptors.response.use(
   (res) => res,
   async (err) => {
     const originalRequest = err.config || {};
+    const requestUrl = originalRequest.url || '';
+    const isAuthEndpoint =
+      requestUrl.includes('/otp-auth/refresh-token') ||
+      requestUrl.includes('/otp-auth/send-otp') ||
+      requestUrl.includes('/otp-auth/verify-otp') ||
+      requestUrl.includes('/otp-auth/logout') ||
+      requestUrl.includes('/otp-auth/me');
     const isTokenExpired =
       err.response?.status === 401 &&
       (err.response?.data?.code === 'TOKEN_EXPIRED' ||
@@ -39,10 +46,7 @@ client.interceptors.response.use(
       isTokenExpired &&
       !originalRequest._retry &&
       !originalRequest.skipAuthRefresh &&
-      !originalRequest.url?.includes('/otp-auth/refresh-token') &&
-      !originalRequest.url?.includes('/otp-auth/send-otp') &&
-      !originalRequest.url?.includes('/otp-auth/verify-otp') &&
-      !originalRequest.url?.includes('/otp-auth/logout')
+      !isAuthEndpoint
     ) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
@@ -80,7 +84,10 @@ client.interceptors.response.use(
       }
     }
 
-    if (err.response?.status === 401) {
+    const shouldSuppressUnauthorizedRedirect =
+      originalRequest.skipAuthRefresh || isAuthEndpoint;
+
+    if (err.response?.status === 401 && !shouldSuppressUnauthorizedRedirect) {
       setAccessToken(null);
       notifyUnauthorized();
     }

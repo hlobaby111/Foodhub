@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { X, Navigation, Plus, MapPin, Home, Briefcase, Loader } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { X, Navigation, Plus, MapPin, Loader } from 'lucide-react';
+import api from '../utils/api';
 
 const getGeolocationErrorMessage = (error) => {
   if (!error || typeof error.code !== 'number') {
@@ -18,8 +19,30 @@ const getGeolocationErrorMessage = (error) => {
   }
 };
 
-const LocationModal = ({ isOpen, onClose, onLocationSelect }) => {
+const formatAddress = (address) => {
+  const parts = [address.street, address.city, address.state, address.pincode].filter(Boolean);
+  return parts.join(', ');
+};
+
+const LocationModal = ({ isOpen, onClose, onLocationSelect, onAddManualAddress }) => {
   const [loading, setLoading] = useState(false);
+  const [savedAddresses, setSavedAddresses] = useState([]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const fetchSavedAddresses = async () => {
+      try {
+        const response = await api.get('/api/addresses');
+        setSavedAddresses(Array.isArray(response.data?.addresses) ? response.data.addresses : []);
+      } catch (error) {
+        console.error('Failed to load saved addresses:', error);
+        setSavedAddresses([]);
+      }
+    };
+
+    fetchSavedAddresses();
+  }, [isOpen]);
 
   const handleCurrentLocation = async () => {
     setLoading(true);
@@ -37,14 +60,50 @@ const LocationModal = ({ isOpen, onClose, onLocationSelect }) => {
       }
 
       navigator.geolocation.getCurrentPosition(
-        (position) => {
+        async (position) => {
+          const { latitude, longitude } = position.coords;
+          let resolvedAddress = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+
+          try {
+            const reverse = await fetch(
+              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+            );
+            const data = await reverse.json();
+            if (data?.display_name) {
+              resolvedAddress = data.display_name;
+            }
+          } catch (error) {
+            console.error('Reverse geocoding failed:', error);
+          }
+
           const location = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-            address: 'Current Location',
-            type: 'current'
+            lat: latitude,
+            lng: longitude,
+            street: resolvedAddress,
+            city: 'Mumbai',
+            state: 'Maharashtra',
+            pincode: '',
+            label: 'Current Location',
+            address: resolvedAddress,
           };
+
+          try {
+            await api.put('/api/addresses/location/current', { lat: latitude, lng: longitude });
+            await api.post('/api/addresses', {
+              label: 'Current Location',
+              street: resolvedAddress,
+              city: 'Mumbai',
+              state: 'Maharashtra',
+              pincode: '',
+              lat: latitude,
+              lng: longitude,
+            });
+          } catch (error) {
+            console.error('Failed to update current location in backend:', error);
+          }
+
           onLocationSelect(location);
+          onClose();
           setLoading(false);
         },
         (error) => {
@@ -63,32 +122,6 @@ const LocationModal = ({ isOpen, onClose, onLocationSelect }) => {
     }
   };
 
-  const savedAddresses = [
-    {
-      id: 1,
-      type: 'home',
-      label: 'Home',
-      address: 'Flat 204, Silver Heights, Bandra West',
-      city: 'Mumbai, Maharashtra 400050',
-      icon: Home
-    },
-    {
-      id: 2,
-      type: 'work',
-      label: 'Work',
-      address: 'Office 501, Business Park, Andheri East',
-      city: 'Mumbai, Maharashtra 400069',
-      icon: Briefcase
-    },
-    {
-      id: 3,
-      type: 'other',
-      label: 'Other',
-      address: 'Building A-12, Sector 4, Juhu',
-      city: 'Mumbai, Maharashtra 400049',
-      icon: MapPin
-    }
-  ];
 
   if (!isOpen) return null;
 
@@ -141,7 +174,7 @@ const LocationModal = ({ isOpen, onClose, onLocationSelect }) => {
             <button
               onClick={() => {
                 onClose();
-                window.location.href = '/add-address';
+                if (onAddManualAddress) onAddManualAddress();
               }}
               className="group rounded-xl border-2 border-border hover:border-primary/50 bg-white hover:bg-muted/30 p-5 transition-all duration-200 hover:shadow-md text-left"
             >
@@ -167,42 +200,40 @@ const LocationModal = ({ isOpen, onClose, onLocationSelect }) => {
           </div>
 
           <div className="space-y-3">
-            {savedAddresses.map((address) => {
-              const IconComponent = address.icon;
-              return (
-                <button
-                  key={address.id}
-                  onClick={() => onLocationSelect(address)}
-                  className="w-full group flex items-start gap-4 p-4 rounded-xl border border-border hover:border-primary/50 hover:bg-muted/30 transition-all duration-200 hover:shadow-sm text-left"
-                >
-                  <div className="w-11 h-11 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 group-hover:bg-primary/10 transition-colors">
-                    <IconComponent className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
-                  </div>
+            {savedAddresses.map((address) => (
+              <button
+                key={address._id}
+                onClick={() => {
+                  onLocationSelect({ ...address, address: formatAddress(address) });
+                  onClose();
+                }}
+                className="w-full group flex items-start gap-4 p-4 rounded-xl border border-border hover:border-primary/50 hover:bg-muted/30 transition-all duration-200 hover:shadow-sm text-left"
+              >
+                <div className="w-11 h-11 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 group-hover:bg-primary/10 transition-colors">
+                  <MapPin className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                </div>
 
-                  <div className="flex-1 min-w-0 pt-0.5">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-sm font-semibold text-foreground">{address.label}</span>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-muted text-muted-foreground">{address.type}</span>
-                    </div>
-                    <p className="text-sm text-foreground/80 mb-0.5 line-clamp-1">{address.address}</p>
-                    <p className="text-xs text-muted-foreground">{address.city}</p>
+                <div className="flex-1 min-w-0 pt-0.5">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-sm font-semibold text-foreground">{address.label || 'Saved'}</span>
                   </div>
+                  <p className="text-sm text-foreground/80 mb-0.5 line-clamp-1">{formatAddress(address)}</p>
+                </div>
 
-                  <div className="flex items-center pt-2">
-                    <div className="w-6 h-6 rounded-full flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                      <svg
-                        className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </div>
+                <div className="flex items-center pt-2">
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                    <svg
+                      className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
                   </div>
-                </button>
-              );
-            })}
+                </div>
+              </button>
+            ))}
           </div>
 
           {savedAddresses.length === 0 && (
@@ -214,7 +245,7 @@ const LocationModal = ({ isOpen, onClose, onLocationSelect }) => {
               <button
                 onClick={() => {
                   onClose();
-                  window.location.href = '/add-address';
+                  if (onAddManualAddress) onAddManualAddress();
                 }}
                 className="text-sm font-medium text-primary hover:underline"
               >

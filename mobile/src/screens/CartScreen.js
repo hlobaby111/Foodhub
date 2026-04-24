@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 import { theme } from '../utils/theme';
+import RazorpayCheckout from '../components/RazorpayCheckout';
 
 const CartScreen = () => {
   const navigation = useNavigation();
@@ -36,6 +37,7 @@ const CartScreen = () => {
   const [phone, setPhone] = useState(user?.phone || '');
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [loading, setLoading] = useState(false);
+  const [razorpayModal, setRazorpayModal] = useState(null); // { razorpayKeyId, razorpayOrderId, orderId, amount, orderObj }
 
   useEffect(() => {
     if (cartRestaurant) {
@@ -123,12 +125,14 @@ const CartScreen = () => {
       const response = await api.post('/api/orders', orderData);
 
       if (paymentMethod === 'online' && response.data.razorpayOrderId) {
-        await api.post('/api/orders/verify-payment', {
-          orderId: response.data.order._id,
-          razorpayPaymentId: 'pay_test_' + Date.now(),
+        setRazorpayModal({
+          razorpayKeyId: response.data.razorpayKeyId,
           razorpayOrderId: response.data.razorpayOrderId,
-          razorpaySignature: 'test_signature'
+          orderId: response.data.order._id,
+          amount: grandTotal,
+          orderObj: response.data.order,
         });
+        return; // wait for WebView callback
       }
 
       if (paymentMethod === 'online' && !response.data.razorpayOrderId) {
@@ -136,7 +140,7 @@ const CartScreen = () => {
       }
 
       clearCart();
-      navigation.navigate('Orders');
+      navigation.navigate('Orders', { newOrder: response.data.order });
     } catch (error) {
       console.error('Failed to place order:', error);
       alert(error.response?.data?.message || 'Failed to place order');
@@ -156,7 +160,7 @@ const CartScreen = () => {
         <Text style={styles.emptySubtitle}>Add some delicious food to get started</Text>
         <TouchableOpacity
           style={styles.browseButton}
-          onPress={() => navigation.navigate('Home')}
+          onPress={() => navigation.navigate('HomeMain')}
         >
           <Text style={styles.browseButtonText}>Browse Restaurants</Text>
         </TouchableOpacity>
@@ -165,7 +169,8 @@ const CartScreen = () => {
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <>
+      <ScrollView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
@@ -460,6 +465,24 @@ const CartScreen = () => {
 
       <View style={{ height: 20 }} />
     </ScrollView>
+
+    <RazorpayCheckout
+      visible={!!razorpayModal}
+      razorpayKeyId={razorpayModal?.razorpayKeyId}
+      razorpayOrderId={razorpayModal?.razorpayOrderId}
+      orderId={razorpayModal?.orderId}
+      amount={razorpayModal?.amount}
+      customerPhone={phone}
+      onSuccess={() => {
+        const orderObj = razorpayModal?.orderObj;
+        setRazorpayModal(null);
+        clearCart();
+        navigation.navigate('Orders', { newOrder: orderObj });
+      }}
+      onFailure={(msg) => { alert(msg || 'Payment failed.'); }}
+      onClose={() => setRazorpayModal(null)}
+    />
+  </>
   );
 };
 

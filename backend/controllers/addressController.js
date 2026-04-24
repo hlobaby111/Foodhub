@@ -48,8 +48,10 @@ const deleteAddress = async (req, res, next) => {
 
 const updateCurrentLocation = async (req, res, next) => {
   try {
-    const { lat, lng } = req.body;
-    await User.findByIdAndUpdate(req.user._id, { currentLocation: { lat, lng, updatedAt: new Date() } });
+    const { lat, lng, label } = req.body;
+    const update = { currentLocation: { lat, lng, updatedAt: new Date() } };
+    if (label) update.lastLocationLabel = label;
+    await User.findByIdAndUpdate(req.user._id, update);
     res.json({ message: 'Location updated' });
   } catch (error) { next(error); }
 };

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { io } from 'socket.io-client';
 import api from '../utils/api';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
@@ -25,9 +26,67 @@ const Orders = () => {
   const [reviewComment, setReviewComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const upsertOrder = (incoming) => {
+    if (!incoming?._id) return;
+    setOrders((prev) => {
+      const idx = prev.findIndex((o) => o._id === incoming._id);
+      if (idx === -1) return [incoming, ...prev];
+      const next = [...prev];
+      next[idx] = incoming;
+      return next;
+    });
+  };
 
   useEffect(() => {
     fetchOrders();
+  }, []);
+
+  useEffect(() => {
+    if (location.state?.newOrder) {
+      upsertOrder(location.state.newOrder);
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [location.pathname, location.state, navigate]);
+
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+    if (!token) return undefined;
+
+    const backendBase = (process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001').replace(/\/$/, '');
+    const socket = io(backendBase, {
+      path: '/api/socket.io',
+      auth: { token },
+      transports: ['websocket', 'polling'],
+    });
+
+    const onOrderCreated = (payload) => upsertOrder(payload?.order || payload);
+    const onOrderUpdate = (payload) => upsertOrder(payload?.order || payload);
+
+    socket.on('order_created', onOrderCreated);
+    socket.on('order_update', onOrderUpdate);
+
+    return () => {
+      socket.off('order_created', onOrderCreated);
+      socket.off('order_update', onOrderUpdate);
+      socket.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
+    const refresh = () => fetchOrders();
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    const intervalId = setInterval(refresh, 10000);
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, []);
 
   const fetchOrders = async () => {

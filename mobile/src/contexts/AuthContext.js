@@ -53,7 +53,15 @@ export const AuthProvider = ({ children }) => {
           await AsyncStorage.setItem('accessToken', legacyToken);
           await AsyncStorage.removeItem('token');
         }
-        setUser(JSON.parse(userData));
+        const parsed = JSON.parse(userData);
+        setUser(parsed);
+        // Restore last location label from backend user profile if not already cached locally
+        if (parsed.lastLocationLabel) {
+          const cached = await AsyncStorage.getItem('userLastLocation');
+          if (!cached) {
+            await AsyncStorage.setItem('userLastLocation', parsed.lastLocationLabel);
+          }
+        }
       }
     } catch (error) {
       console.error('Error loading user:', error);

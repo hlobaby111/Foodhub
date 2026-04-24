@@ -28,6 +28,77 @@ const buildAddress = (entry) => {
   return parts.join(', ');
 };
 
+const reverseGeocode = async (latitude, longitude) => {
+  // Prefer native reverse geocoding on device for better reliability.
+  if (Platform.OS !== 'web' && Location?.reverseGeocodeAsync) {
+    try {
+      const nativeResult = await Location.reverseGeocodeAsync({
+        latitude,
+        longitude,
+      });
+
+      if (Array.isArray(nativeResult) && nativeResult[0]) {
+        const entry = nativeResult[0];
+        const street = [entry.name, entry.street].filter(Boolean).join(' ').trim();
+        const city = entry.city || entry.subregion || entry.district || '';
+        const state = entry.region || '';
+        const pincode = entry.postalCode || '';
+        const address = [street, city, state, pincode].filter(Boolean).join(', ');
+
+        if (address) {
+          return { street, city, state, pincode, address };
+        }
+      }
+    } catch (error) {
+      console.warn('Native reverse geocoding failed:', error?.message || error);
+    }
+  }
+
+  // Fallback to Nominatim.
+  try {
+    const reverse = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`,
+      {
+        headers: {
+          Accept: 'application/json',
+          'Accept-Language': 'en',
+          'User-Agent': 'FoodHubMobile/1.0',
+        },
+      }
+    );
+
+    if (!reverse.ok) {
+      throw new Error(`Reverse geocode HTTP ${reverse.status}`);
+    }
+
+    const data = await reverse.json();
+    const addr = data?.address || {};
+    const street = [addr.house_number, addr.road || addr.neighbourhood || addr.suburb]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+    const city = addr.city || addr.town || addr.village || addr.county || '';
+    const state = addr.state || '';
+    const pincode = addr.postcode || '';
+    const address = data?.display_name || [street, city, state, pincode].filter(Boolean).join(', ');
+
+    if (address) {
+      return { street, city, state, pincode, address };
+    }
+  } catch (error) {
+    console.warn('Nominatim reverse geocoding failed:', error?.message || error);
+  }
+
+  const fallbackAddress = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+  return {
+    street: fallbackAddress,
+    city: '',
+    state: '',
+    pincode: '',
+    address: fallbackAddress,
+  };
+};
+
 const LocationSelectorScreen = () => {
   const navigation = useNavigation();
   const route = useRoute();
@@ -35,6 +106,30 @@ const LocationSelectorScreen = () => {
   const [loading, setLoading] = useState(false);
   const [detectedLocation, setDetectedLocation] = useState(null);
   const [recentLocations, setRecentLocations] = useState([]);
+
+  const resolveCurrentPosition = async () => {
+    if (Platform.OS === 'web') {
+      if (!navigator?.geolocation) throw new Error('Location API not available');
+      return new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => resolve(pos),
+          (err) => reject(err),
+          { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+        );
+      });
+    }
+
+    if (!Location || !Location.requestForegroundPermissionsAsync) {
+      throw new Error('Location API not available');
+    }
+
+    const permission = await Location.requestForegroundPermissionsAsync();
+    if (permission.status !== 'granted') {
+      throw new Error('Location permission denied');
+    }
+
+    return Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+  };
 
   useEffect(() => {
     const fetchRecent = async () => {
@@ -54,48 +149,33 @@ const LocationSelectorScreen = () => {
   const handleUseCurrentLocation = async () => {
     setLoading(true);
     try {
-      if (!Location || !Location.requestForegroundPermissionsAsync) {
-        throw new Error('Location API not available');
-      }
-
-      const permission = await Location.requestForegroundPermissionsAsync();
-      if (permission.status !== 'granted') {
-        Alert.alert('Permission required', 'Please allow location access to continue.');
-        setLoading(false);
-        return;
-      }
-
-      const position = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
+      const position = await resolveCurrentPosition();
 
       const { latitude, longitude } = position.coords;
-      let resolvedAddress = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-
-      try {
-        const reverse = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
-        );
-        const data = await reverse.json();
-        if (data?.display_name) {
-          resolvedAddress = data.display_name;
-        }
-      } catch (error) {
-        console.error('Reverse geocoding failed:', error);
-      }
+      const geocoded = await reverseGeocode(latitude, longitude);
 
       const location = {
         lat: latitude,
         lng: longitude,
-        street: resolvedAddress,
-        city: 'Mumbai',
-        state: 'Maharashtra',
-        pincode: '',
-        address: resolvedAddress,
+        street: geocoded.street || geocoded.address,
+        city: geocoded.city || 'Mumbai',
+        state: geocoded.state || 'Maharashtra',
+        pincode: geocoded.pincode || '',
+        address: geocoded.address,
       };
 
       try {
         await api.put('/api/addresses/location/current', {
+          lat: latitude,
+          lng: longitude,
+        });
+
+        await api.post('/api/addresses', {
+          label: 'Current Location',
+          street: location.street,
+          city: location.city,
+          state: location.state,
+          pincode: location.pincode,
           lat: latitude,
           lng: longitude,
         });
@@ -133,11 +213,6 @@ const LocationSelectorScreen = () => {
     navigation.goBack();
   };
 
-  const fallbackLocations = [
-    { id: 'home', label: 'Home', address: 'Bandra West, Mumbai, Maharashtra' },
-    { id: 'work', label: 'Work', address: 'Andheri East, Mumbai, Maharashtra' },
-  ];
-
   const recent = recentLocations.length
     ? recentLocations.map((loc) => ({
         id: loc._id,
@@ -150,7 +225,7 @@ const LocationSelectorScreen = () => {
         lat: loc.lat,
         lng: loc.lng,
       }))
-    : fallbackLocations;
+    : [];
 
   return (
     <View style={styles.container}>
@@ -218,7 +293,7 @@ const LocationSelectorScreen = () => {
 
           <TouchableOpacity
             style={styles.secondaryButton}
-            onPress={() => navigation.navigate('Profile')}
+            onPress={() => navigation.navigate('AddressSelector', { onSelectAddress: onLocationSelect })}
             activeOpacity={0.7}
           >
             <View style={styles.buttonIconContainerSecondary}>
@@ -235,7 +310,9 @@ const LocationSelectorScreen = () => {
 
         <View style={styles.recentSection}>
           <Text style={styles.recentTitle}>RECENT LOCATIONS</Text>
-          {recent.map((location) => (
+          {recent.length === 0 ? (
+            <Text style={styles.recentAddress}>No saved addresses yet. Add one manually.</Text>
+          ) : recent.map((location) => (
             <TouchableOpacity
               key={location.id}
               style={styles.recentItem}

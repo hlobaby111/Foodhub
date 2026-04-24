@@ -24,7 +24,7 @@ const formatAddress = (address) => {
   return parts.join(', ');
 };
 
-const LocationSelector = ({ isOpen, onClose, onLocationSelect, onSelectAddress }) => {
+const LocationSelector = ({ isOpen, onClose, onLocationSelect, onSelectAddress, onAddManualAddress }) => {
   const handleSelect = onLocationSelect || onSelectAddress;
   const [loading, setLoading] = useState(false);
   const [detectedLocation, setDetectedLocation] = useState(null);
@@ -68,18 +68,42 @@ const LocationSelector = ({ isOpen, onClose, onLocationSelect, onSelectAddress }
         async (position) => {
           const { latitude, longitude } = position.coords;
 
+          let resolvedAddress = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+
+          try {
+            const reverse = await fetch(
+              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+            );
+            const data = await reverse.json();
+            if (data?.display_name) {
+              resolvedAddress = data.display_name;
+            }
+          } catch (error) {
+            console.error('Reverse geocoding failed:', error);
+          }
+
           const location = {
             lat: latitude,
             lng: longitude,
-            address: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
+            address: resolvedAddress,
             city: 'Mumbai',
             state: 'Maharashtra',
             pincode: '',
-            street: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
+            street: resolvedAddress,
+            label: 'Current Location',
           };
 
           try {
             await api.put('/api/addresses/location/current', { lat: latitude, lng: longitude });
+            await api.post('/api/addresses', {
+              label: 'Current Location',
+              street: resolvedAddress,
+              city: 'Mumbai',
+              state: 'Maharashtra',
+              pincode: '',
+              lat: latitude,
+              lng: longitude,
+            });
           } catch (error) {
             console.error('Failed to update current location in backend:', error);
           }
@@ -88,6 +112,7 @@ const LocationSelector = ({ isOpen, onClose, onLocationSelect, onSelectAddress }
           if (handleSelect) {
             handleSelect(location);
           }
+          onClose();
           setLoading(false);
         },
         (error) => {
@@ -192,7 +217,7 @@ const LocationSelector = ({ isOpen, onClose, onLocationSelect, onSelectAddress }
           <button
             onClick={() => {
               onClose();
-              window.location.href = '/profile';
+              if (onAddManualAddress) onAddManualAddress();
             }}
             className="w-full group rounded-xl border-2 border-border hover:border-primary bg-white hover:bg-muted/50 p-6 transition-all duration-200 hover:shadow-md"
           >
@@ -210,10 +235,7 @@ const LocationSelector = ({ isOpen, onClose, onLocationSelect, onSelectAddress }
           <div className="pt-4 border-t border-border">
             <p className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wide">Recent Locations</p>
             <div className="space-y-2">
-              {(recentLocations.length > 0 ? recentLocations : [
-                { _id: 'home', label: 'Home', street: 'Bandra West', city: 'Mumbai', state: 'Maharashtra' },
-                { _id: 'work', label: 'Work', street: 'Andheri East', city: 'Mumbai', state: 'Maharashtra' },
-              ]).map((loc, i) => (
+              {(recentLocations.length > 0 ? recentLocations : []).map((loc, i) => (
                 <button
                   key={loc._id || i}
                   onClick={() => handleSelectRecent(loc)}
@@ -224,6 +246,9 @@ const LocationSelector = ({ isOpen, onClose, onLocationSelect, onSelectAddress }
                 </button>
               ))}
             </div>
+            {recentLocations.length === 0 && (
+              <p className="text-sm text-muted-foreground">No saved addresses yet. Add one manually.</p>
+            )}
           </div>
         </div>
       </div>

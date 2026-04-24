@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Clock, CheckCircle2, XCircle, Package, Loader2 } from 'lucide-react';
+import { io } from 'socket.io-client';
 import { getRestaurantOrders, updateOrderStatus } from '../api/restaurant';
+import { getAccessToken } from '../auth/session';
 
 const FILTER_TO_STATUS = {
   all: null,
@@ -16,22 +18,82 @@ export default function Orders() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const loadOrders = async (statusKey = filter) => {
+  const upsertOrder = useCallback((incoming) => {
+    if (!incoming?._id) return;
+    setOrders((prev) => {
+      const idx = prev.findIndex((o) => o._id === incoming._id);
+      if (idx === -1) return [incoming, ...prev];
+      const next = [...prev];
+      next[idx] = incoming;
+      return next;
+    });
+  }, []);
+
+  const loadOrders = useCallback(async (statusKey = filter, keepLoadingState = false) => {
     try {
-      setLoading(true);
+      if (!keepLoadingState) {
+        setLoading(true);
+      }
       setError('');
       const res = await getRestaurantOrders(FILTER_TO_STATUS[statusKey]);
       setOrders(res.data.orders || []);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load orders');
     } finally {
-      setLoading(false);
+      if (!keepLoadingState) {
+        setLoading(false);
+      }
     }
-  };
+  }, [filter]);
 
   useEffect(() => {
     loadOrders(filter);
-  }, [filter]);
+  }, [filter, loadOrders]);
+
+  useEffect(() => {
+    // Refresh when tab becomes visible or user returns focus.
+    const refreshOnFocus = () => loadOrders(filter, true);
+    const refreshOnVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        refreshOnFocus();
+      }
+    };
+
+    // Lightweight polling keeps dashboard fresh even without navigation.
+    const intervalId = setInterval(() => refreshOnFocus(), 10000);
+    window.addEventListener('focus', refreshOnFocus);
+    document.addEventListener('visibilitychange', refreshOnVisibility);
+
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener('focus', refreshOnFocus);
+      document.removeEventListener('visibilitychange', refreshOnVisibility);
+    };
+  }, [filter, loadOrders]);
+
+  useEffect(() => {
+    const token = getAccessToken();
+    if (!token) return undefined;
+
+    const backendBase = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '');
+    const socket = io(backendBase, {
+      path: '/api/socket.io',
+      auth: { token },
+      transports: ['websocket', 'polling'],
+    });
+
+    const onOrderCreated = (payload) => upsertOrder(payload?.order || payload);
+    const onOrderUpdate = (payload) => upsertOrder(payload?.order || payload);
+
+    socket.on('order_created', onOrderCreated);
+    socket.on('order_update', onOrderUpdate);
+
+    return () => {
+      socket.off('order_created', onOrderCreated);
+      socket.off('order_update', onOrderUpdate);
+      socket.disconnect();
+    };
+  }, [upsertOrder]);
 
   const changeStatus = async (id, status) => {
     try {
@@ -93,6 +155,24 @@ export default function Orders() {
                   <p key={`${o._id}-${idx}`} className="text-sm text-gray-700">• {it.name} x{it.quantity}</p>
                 ))}
               </div>
+              {['placed', 'accepted', 'preparing', 'ready'].includes(o.orderStatus) && (
+                <div className="flex gap-2 mb-4">
+                  <button
+                    onClick={() => changeStatus(o._id, 'preparing')}
+                    disabled={['preparing', 'ready', 'picked_up', 'out_for_delivery', 'delivered', 'cancelled'].includes(o.orderStatus)}
+                    className="px-3 py-2 rounded-lg text-sm font-semibold bg-yellow-50 text-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Preparing
+                  </button>
+                  <button
+                    onClick={() => changeStatus(o._id, 'ready')}
+                    disabled={!['preparing', 'accepted'].includes(o.orderStatus)}
+                    className="px-3 py-2 rounded-lg text-sm font-semibold bg-blue-50 text-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Ready
+                  </button>
+                </div>
+              )}
               {o.orderStatus === 'placed' && (
                 <div className="flex gap-3">
                   <button

@@ -127,6 +127,7 @@ class OTPAuthController {
         isNewUser,
         needsProfile: !user.name || !user.email, // Check if profile needs completion
         accessToken,
+        refreshToken,
         user: {
           id: user._id,
           phone: user.phone,
@@ -166,6 +167,7 @@ class OTPAuthController {
       return res.status(200).json({
         message: 'Token refreshed successfully',
         accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
       });
     } catch (error) {
       console.error('Refresh Token Error:', error);

@@ -24,6 +24,7 @@ const userSchema = new mongoose.Schema({
     isDefault: { type: Boolean, default: false }
   }],
   currentLocation: { lat: Number, lng: Number, updatedAt: Date },
+  lastLocationLabel: { type: String, default: '' },
   isAvailable: { type: Boolean, default: true },
   isActive: { type: Boolean, default: true },
   lastLogin: { type: Date },

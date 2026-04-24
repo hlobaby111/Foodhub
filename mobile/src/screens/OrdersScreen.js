@@ -10,9 +10,10 @@ import {
   TextInput,
 } from 'react-native';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import api from '../services/api';
 import { theme } from '../utils/theme';
+import { useCallback } from 'react';
 
 const statusConfig = {
   placed: { label: 'Placed', color: theme.colors.blue[100], textColor: theme.colors.blue[800], icon: 'package-variant' },
@@ -25,6 +26,7 @@ const statusConfig = {
 
 const OrdersScreen = () => {
   const navigation = useNavigation();
+  const route = useRoute();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [reviewDialog, setReviewDialog] = useState(null);
@@ -32,8 +34,39 @@ const OrdersScreen = () => {
   const [reviewComment, setReviewComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
 
+  const upsertOrder = useCallback((incoming) => {
+    if (!incoming?._id) return;
+    setOrders((prev) => {
+      const idx = prev.findIndex((o) => o._id === incoming._id);
+      if (idx === -1) return [incoming, ...prev];
+      const next = [...prev];
+      next[idx] = incoming;
+      return next;
+    });
+  }, []);
+
   useEffect(() => {
     fetchOrders();
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchOrders();
+    }, [])
+  );
+
+  useEffect(() => {
+    if (route.params?.newOrder) {
+      upsertOrder(route.params.newOrder);
+      navigation.setParams({ newOrder: undefined });
+    }
+  }, [navigation, route.params, upsertOrder]);
+
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      fetchOrders();
+    }, 10000);
+    return () => clearInterval(intervalId);
   }, []);
 
   const fetchOrders = async () => {

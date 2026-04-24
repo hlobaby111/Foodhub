@@ -25,7 +25,12 @@ export default function Register() {
       if (res.data.otp) setDevOtp(res.data.otp); // dev only
       setStep('otp');
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to send OTP');
+      const waitSeconds = err.response?.data?.waitSeconds;
+      if (err.response?.status === 429) {
+        setError(`Too many requests. Try again after ${waitSeconds || 30} seconds.`);
+      } else {
+        setError(err.response?.data?.message || 'Failed to send OTP');
+      }
     } finally {
       setLoading(false);
     }
